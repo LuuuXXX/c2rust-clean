@@ -1,0 +1,1 @@
+/home/runner/work/c2rust-clean/c2rust-clean/target/debug/c2rust-clean: /home/runner/work/c2rust-clean/c2rust-clean/src/config_helper.rs /home/runner/work/c2rust-clean/c2rust-clean/src/error.rs /home/runner/work/c2rust-clean/c2rust-clean/src/executor.rs /home/runner/work/c2rust-clean/c2rust-clean/src/main.rs
