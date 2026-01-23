@@ -1,38 +1,38 @@
 use std::fmt;
 
 #[derive(Debug)]
-pub enum CleanError {
+pub enum Error {
     ConfigToolNotFound,
     CommandExecutionFailed(String),
     ConfigSaveFailed(String),
     IoError(std::io::Error),
 }
 
-impl fmt::Display for CleanError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CleanError::ConfigToolNotFound => {
+            Error::ConfigToolNotFound => {
                 write!(f, "c2rust-config not found. Please install c2rust-config first.")
             }
-            CleanError::CommandExecutionFailed(msg) => {
+            Error::CommandExecutionFailed(msg) => {
                 write!(f, "Command execution failed: {}", msg)
             }
-            CleanError::ConfigSaveFailed(msg) => {
+            Error::ConfigSaveFailed(msg) => {
                 write!(f, "Failed to save configuration: {}", msg)
             }
-            CleanError::IoError(err) => {
+            Error::IoError(err) => {
                 write!(f, "IO error: {}", err)
             }
         }
     }
 }
 
-impl std::error::Error for CleanError {}
+impl std::error::Error for Error {}
 
-impl From<std::io::Error> for CleanError {
+impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
-        CleanError::IoError(err)
+        Error::IoError(err)
     }
 }
 
-pub type Result<T> = std::result::Result<T, CleanError>;
+pub type Result<T> = std::result::Result<T, Error>;

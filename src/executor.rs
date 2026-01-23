@@ -1,10 +1,10 @@
-use crate::error::{CleanError, Result};
+use crate::error::{Error, Result};
 use std::process::Command;
 
 /// Execute a command in the specified directory
 pub fn execute_command(dir: &str, command: &[String]) -> Result<()> {
     if command.is_empty() {
-        return Err(CleanError::CommandExecutionFailed(
+        return Err(Error::CommandExecutionFailed(
             "No command provided".to_string(),
         ));
     }
@@ -17,7 +17,7 @@ pub fn execute_command(dir: &str, command: &[String]) -> Result<()> {
         .current_dir(dir)
         .output()
         .map_err(|e| {
-            CleanError::CommandExecutionFailed(format!(
+            Error::CommandExecutionFailed(format!(
                 "Failed to execute command '{}': {}",
                 command.join(" "),
                 e
@@ -27,7 +27,7 @@ pub fn execute_command(dir: &str, command: &[String]) -> Result<()> {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let stdout = String::from_utf8_lossy(&output.stdout);
-        return Err(CleanError::CommandExecutionFailed(format!(
+        return Err(Error::CommandExecutionFailed(format!(
             "Command '{}' failed with exit code {}\nstdout: {}\nstderr: {}",
             command.join(" "),
             output.status.code().unwrap_or(-1),

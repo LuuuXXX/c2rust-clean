@@ -16,11 +16,11 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Execute clean command and save configuration
-    Clean(CleanArgs),
+    Clean(CommandArgs),
 }
 
 #[derive(Args)]
-struct CleanArgs {
+struct CommandArgs {
     /// Directory to execute clean command
     #[arg(long, required = true)]
     dir: String,
@@ -34,7 +34,7 @@ struct CleanArgs {
     command: Vec<String>,
 }
 
-fn run(args: CleanArgs) -> Result<()> {
+fn run(args: CommandArgs) -> Result<()> {
     // 1. Check if c2rust-config exists
     config_helper::check_c2rust_config_exists()?;
 

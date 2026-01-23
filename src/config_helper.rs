@@ -1,4 +1,4 @@
-use crate::error::{CleanError, Result};
+use crate::error::{Error, Result};
 use std::process::Command;
 
 /// Check if c2rust-config command exists
@@ -9,7 +9,7 @@ pub fn check_c2rust_config_exists() -> Result<()> {
 
     match result {
         Ok(output) if output.status.success() => Ok(()),
-        _ => Err(CleanError::ConfigToolNotFound),
+        _ => Err(Error::ConfigToolNotFound),
     }
 }
 
@@ -28,12 +28,12 @@ pub fn save_config(dir: &str, command: &str, feature: Option<&str>) -> Result<()
         .args(&["--set", "clean.dir", dir]);
 
     let output = cmd.output().map_err(|e| {
-        CleanError::ConfigSaveFailed(format!("Failed to execute c2rust-config: {}", e))
+        Error::ConfigSaveFailed(format!("Failed to execute c2rust-config: {}", e))
     })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(CleanError::ConfigSaveFailed(format!(
+        return Err(Error::ConfigSaveFailed(format!(
             "Failed to save clean.dir: {}",
             stderr
         )));
@@ -46,12 +46,12 @@ pub fn save_config(dir: &str, command: &str, feature: Option<&str>) -> Result<()
         .args(&["--set", "clean", command]);
 
     let output = cmd.output().map_err(|e| {
-        CleanError::ConfigSaveFailed(format!("Failed to execute c2rust-config: {}", e))
+        Error::ConfigSaveFailed(format!("Failed to execute c2rust-config: {}", e))
     })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(CleanError::ConfigSaveFailed(format!(
+        return Err(Error::ConfigSaveFailed(format!(
             "Failed to save clean command: {}",
             stderr
         )));
