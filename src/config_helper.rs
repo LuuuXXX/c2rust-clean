@@ -8,7 +8,8 @@ fn get_c2rust_config_path() -> String {
 
 /// Check if c2rust-config command exists
 pub fn check_c2rust_config_exists() -> Result<()> {
-    let result = Command::new(get_c2rust_config_path())
+    let config_path = get_c2rust_config_path();
+    let result = Command::new(&config_path)
         .arg("--version")
         .output();
 
@@ -20,6 +21,7 @@ pub fn check_c2rust_config_exists() -> Result<()> {
 
 /// Save clean configuration using c2rust-config
 pub fn save_config(dir: &str, command: &str, feature: Option<&str>) -> Result<()> {
+    let config_path = get_c2rust_config_path();
     let feature_args = if let Some(f) = feature {
         vec!["--feature", f]
     } else {
@@ -27,7 +29,7 @@ pub fn save_config(dir: &str, command: &str, feature: Option<&str>) -> Result<()
     };
 
     // Save clean.dir configuration
-    let mut cmd = Command::new(get_c2rust_config_path());
+    let mut cmd = Command::new(&config_path);
     cmd.args(&["config", "--make"])
         .args(&feature_args)
         .args(&["--set", "clean.dir", dir]);
@@ -45,7 +47,7 @@ pub fn save_config(dir: &str, command: &str, feature: Option<&str>) -> Result<()
     }
 
     // Save clean command configuration
-    let mut cmd = Command::new(get_c2rust_config_path());
+    let mut cmd = Command::new(&config_path);
     cmd.args(&["config", "--make"])
         .args(&feature_args)
         .args(&["--set", "clean", command]);
