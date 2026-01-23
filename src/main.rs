@@ -34,12 +34,12 @@ struct CleanArgs {
     command: Vec<String>,
 }
 
-fn run_clean(args: CleanArgs) -> Result<()> {
+fn run(args: CleanArgs) -> Result<()> {
     // 1. Check if c2rust-config exists
     config_helper::check_c2rust_config_exists()?;
 
     // 2. Execute the clean command
-    executor::execute_clean_command(&args.dir, &args.command)?;
+    executor::execute_command(&args.dir, &args.command)?;
 
     // 3. Save configuration using c2rust-config
     let command_str = args.command.join(" ");
@@ -53,7 +53,7 @@ fn main() {
     let cli = Cli::parse();
 
     let result = match cli.command {
-        Commands::Clean(args) => run_clean(args),
+        Commands::Clean(args) => run(args),
     };
 
     if let Err(e) = result {
