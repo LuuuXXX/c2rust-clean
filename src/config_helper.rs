@@ -77,21 +77,37 @@ mod tests {
     }
 
     #[test]
-    fn test_get_c2rust_config_path_default() {
-        // Ensure C2RUST_CONFIG is not set for this test
-        std::env::remove_var("C2RUST_CONFIG");
+    fn test_get_c2rust_config_path_with_env() {
+        // Test that environment variable is respected
+        // Save current value
+        let original = std::env::var("C2RUST_CONFIG").ok();
+        
+        // Test with custom path
+        std::env::set_var("C2RUST_CONFIG", "/custom/path/to/c2rust-config");
         let path = get_c2rust_config_path();
-        assert_eq!(path, "c2rust-config");
+        assert_eq!(path, "/custom/path/to/c2rust-config");
+        
+        // Restore original value or remove if it wasn't set
+        match original {
+            Some(val) => std::env::set_var("C2RUST_CONFIG", val),
+            None => std::env::remove_var("C2RUST_CONFIG"),
+        }
     }
 
     #[test]
-    fn test_get_c2rust_config_path_from_env() {
-        // Set C2RUST_CONFIG environment variable
-        let custom_path = "/custom/path/to/c2rust-config";
-        std::env::set_var("C2RUST_CONFIG", custom_path);
-        let path = get_c2rust_config_path();
-        assert_eq!(path, custom_path);
-        // Clean up
+    fn test_get_c2rust_config_path_without_env() {
+        // Test default behavior when env var is not set
+        // Save current value
+        let original = std::env::var("C2RUST_CONFIG").ok();
+        
+        // Remove env var
         std::env::remove_var("C2RUST_CONFIG");
+        let path = get_c2rust_config_path();
+        assert_eq!(path, "c2rust-config");
+        
+        // Restore original value if it was set
+        if let Some(val) = original {
+            std::env::set_var("C2RUST_CONFIG", val);
+        }
     }
 }
