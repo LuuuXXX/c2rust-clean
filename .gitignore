@@ -1,0 +1,17 @@
+# Rust build artifacts
+/target/
+
+# Cargo.lock should generally be included for binaries but excluded for libraries
+# Uncomment this if you want to exclude it:
+# Cargo.lock
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
