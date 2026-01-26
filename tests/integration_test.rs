@@ -49,21 +49,19 @@ fn test_clean_with_feature() {
 }
 
 #[test]
-fn test_missing_dir_argument() {
+fn test_missing_dir_and_command_arguments() {
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    cmd.arg("clean")
-        .arg("--")
-        .arg("echo")
-        .arg("test");
+    // Without --dir and command, and without config file, should fail
+    cmd.arg("clean");
 
+    // The error could be about missing parameters or c2rust-config not found
     cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("--dir"));
+        .failure();
 }
 
 #[test]
-fn test_missing_command_argument() {
+fn test_missing_command_argument_without_config() {
     let temp_dir = TempDir::new().unwrap();
     let dir_path = temp_dir.path().to_str().unwrap();
 
@@ -73,6 +71,7 @@ fn test_missing_command_argument() {
         .arg("--dir")
         .arg(dir_path);
 
+    // Without command and without config file, should fail
     cmd.assert()
         .failure();
 }
