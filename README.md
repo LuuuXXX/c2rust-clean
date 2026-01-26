@@ -173,7 +173,6 @@ clean = "make clean"
 Executing command: make clean
 In directory: build
 
-stdout:
 rm -f *.o
 rm -f myapp
 

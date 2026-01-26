@@ -127,7 +127,19 @@ pub fn read_config(feature: Option<&str>) -> Result<CleanConfig> {
                     config.command = Some(value);
                 }
             }
-            _ => {}
+            _ => {
+                // Help users debug near-miss configuration keys related to cleaning
+                if normalized_key.starts_with("clean")
+                    && normalized_key != "clean"
+                    && normalized_key != "clean.dir"
+                {
+                    eprintln!(
+                        "c2rust-config: ignoring unrecognized configuration key '{}'; \
+                         expected 'clean' or 'clean.dir'",
+                        normalized_key
+                    );
+                }
+            }
         }
     }
 
@@ -147,6 +159,7 @@ fn extract_config_value(line: &str) -> Option<String> {
 }
 
 /// Remove surrounding quotes from a string
+/// Note: Does not handle escaped quotes within quoted strings (e.g., "echo \"hello\"")
 fn remove_quotes(s: &str) -> String {
     if (s.starts_with('"') && s.ends_with('"') && s.len() >= 2) 
         || (s.starts_with('\'') && s.ends_with('\'') && s.len() >= 2) {
@@ -230,5 +243,41 @@ mod tests {
 
         // Test invalid format
         assert_eq!(extract_config_value("invalid"), None);
+    }
+
+    #[test]
+    fn test_remove_quotes() {
+        // Test with double quotes
+        assert_eq!(remove_quotes("\"value\""), "value");
+        
+        // Test with single quotes
+        assert_eq!(remove_quotes("'value'"), "value");
+        
+        // Test without quotes
+        assert_eq!(remove_quotes("value"), "value");
+        
+        // Test empty string
+        assert_eq!(remove_quotes(""), "");
+        
+        // Test single quote character
+        assert_eq!(remove_quotes("\""), "\"");
+    }
+
+    #[test]
+    fn test_read_config_with_valid_output() {
+        // This test simulates the output from c2rust-config
+        // We can't easily test the full read_config without mocking c2rust-config
+        // but we can test the parsing logic
+        
+        // Test that extract_config_value works with typical config output
+        assert_eq!(
+            extract_config_value("\"clean.dir\" = \"build\""),
+            Some("build".to_string())
+        );
+        
+        assert_eq!(
+            extract_config_value("clean = \"make clean\""),
+            Some("make clean".to_string())
+        );
     }
 }

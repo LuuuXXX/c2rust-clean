@@ -13,8 +13,7 @@ pub fn execute_command(dir: &str, command: &[String]) -> Result<()> {
     let args = &command[1..];
 
     // Print the command being executed
-    let command_str = command.join(" ");
-    println!("Executing command: {}", command_str);
+    println!("Executing command: {} {}", program, args.join(" "));
     println!("In directory: {}", dir);
     println!();
 
@@ -27,8 +26,9 @@ pub fn execute_command(dir: &str, command: &[String]) -> Result<()> {
         .spawn()
         .map_err(|e| {
             Error::CommandExecutionFailed(format!(
-                "Failed to execute command '{}': {}",
-                command_str,
+                "Failed to execute command '{} {}': {}",
+                program,
+                args.join(" "),
                 e
             ))
         })?;
@@ -36,8 +36,9 @@ pub fn execute_command(dir: &str, command: &[String]) -> Result<()> {
     // Wait for the command to complete
     let status = child.wait().map_err(|e| {
         Error::CommandExecutionFailed(format!(
-            "Failed to wait for command '{}': {}",
-            command_str,
+            "Failed to wait for command '{} {}': {}",
+            program,
+            args.join(" "),
             e
         ))
     })?;
@@ -53,8 +54,9 @@ pub fn execute_command(dir: &str, command: &[String]) -> Result<()> {
 
     if !status.success() {
         return Err(Error::CommandExecutionFailed(format!(
-            "Command '{}' failed with exit code {}",
-            command_str,
+            "Command '{} {}' failed with exit code {}",
+            program,
+            args.join(" "),
             status.code().unwrap_or(-1),
         )));
     }

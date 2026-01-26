@@ -54,7 +54,18 @@ fn run(args: CommandArgs) -> Result<()> {
         // Parse command string into Vec<String>
         // Note: This uses simple whitespace splitting and doesn't handle quoted arguments.
         // For commands with quoted arguments, specify them directly on the CLI.
-        cmd_str.split_whitespace().map(|s| s.to_string()).collect()
+        let parsed_command: Vec<String> = cmd_str
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect();
+
+        if parsed_command.is_empty() {
+            return Err(error::Error::MissingParameter(
+                "Command in config is empty or whitespace-only. Provide command arguments or set a non-empty clean command in config".to_string(),
+            ));
+        }
+
+        parsed_command
     } else {
         return Err(error::Error::MissingParameter(
             "Command not specified. Provide command arguments or set clean in config".to_string(),
