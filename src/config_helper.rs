@@ -105,8 +105,13 @@ pub fn read_config(feature: Option<&str>) -> Result<CleanConfig> {
     for line in stdout.lines() {
         let line = line.trim();
         
+        // Skip lines without '='
+        if !line.contains('=') {
+            continue;
+        }
+        
         // Extract key from the line (before '=')
-        let key = line.split('=').next().unwrap_or("").trim();
+        let key = line.split('=').next().unwrap_or_default().trim();
         
         // Handle both "clean.dir" and clean.dir formats
         let normalized_key = key.trim_matches('"').trim_matches('\'');
