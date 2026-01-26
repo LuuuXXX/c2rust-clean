@@ -65,7 +65,7 @@ c2rust-clean clean [--feature <特性名>] [--dir <目录>] [-- <清理命令>]
 ```toml
 [feature.default]
 "clean.dir" = "build"
-clean = "make clean"
+"clean.cmd" = "make clean"
 ```
 
 您可以为不同的特性设置不同的配置：
@@ -73,11 +73,11 @@ clean = "make clean"
 ```toml
 [feature.debug]
 "clean.dir" = "build/debug"
-clean = "make clean"
+"clean.cmd" = "make clean"
 
 [feature.release]
 "clean.dir" = "build/release"
-clean = "make distclean"
+"clean.cmd" = "make distclean"
 ```
 
 ### 使用示例
@@ -104,7 +104,7 @@ c2rust-clean clean --dir /path/to/other/dir
 
 #### 覆盖配置文件中的命令
 ```bash
-# 配置文件有 clean = "make clean"，但想执行其他命令
+# 配置文件有 clean.cmd = "make clean"，但想执行其他命令
 c2rust-clean clean -- make distclean
 ```
 
@@ -147,13 +147,13 @@ c2rust-clean clean --dir /path/to/project -- make clean
    - 命令的退出状态
 5. **配置保存**: 使用 `c2rust-config` 将最终使用的配置保存回文件：
    - 保存 `clean.dir` 为目录路径
-   - 保存 `clean` 为完整的清理命令
+   - 保存 `clean.cmd` 为完整的清理命令
 
 ## 配置存储
 
 该工具使用 `c2rust-config` 在 `.c2rust/config.toml` 中存储以下配置：
 - `clean.dir`: 执行清理命令的目录
-- `clean`: 清理命令本身
+- `clean.cmd`: 清理命令本身
 
 这些配置可以稍后通过 `c2rust-config` 检索，用于工作流自动化。也可以在后续运行 `c2rust-clean` 时自动读取，无需每次都指定参数。
 
@@ -162,7 +162,7 @@ c2rust-clean clean --dir /path/to/project -- make clean
 ```toml
 [feature.default]
 "clean.dir" = "build"
-clean = "make clean"
+"clean.cmd" = "make clean"
 ```
 
 ## 输出示例
