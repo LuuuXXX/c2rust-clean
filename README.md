@@ -1,149 +1,149 @@
 # c2rust-clean
 
-C project build artifact cleaning tool for c2rust workflow.
+C 项目构建产物清理工具，用于 c2rust 工作流。
 
-## Overview
+## 概述
 
-`c2rust-clean` is a command-line tool that executes clean commands for C build projects and automatically saves the configuration using `c2rust-config`. This tool is part of the c2rust workflow for managing the transition from C to Rust projects.
+`c2rust-clean` 是一个命令行工具，用于执行 C 构建项目的清理命令，并自动使用 `c2rust-config` 保存配置。该工具是 c2rust 工作流的一部分，用于管理从 C 到 Rust 项目的转换过程。
 
-## Installation
+## 安装
 
-### From Source
+### 从源码安装
 
 ```bash
 cargo install --path .
 ```
 
-Or build locally:
+或本地构建：
 
 ```bash
 cargo build --release
-# Binary will be in target/release/c2rust-clean
+# 二进制文件将位于 target/release/c2rust-clean
 ```
 
-## Prerequisites
+## 前置要求
 
-This tool requires `c2rust-config` to be installed. Install it from:
+此工具需要安装 `c2rust-config`。请从以下地址安装：
 https://github.com/LuuuXXX/c2rust-config
 
-### Environment Variables
+### 环境变量
 
-- `C2RUST_CONFIG`: Optional. Path to the c2rust-config binary. If not set, the tool will look for `c2rust-config` in your PATH.
+- `C2RUST_CONFIG`: 可选。c2rust-config 二进制文件的路径。如果未设置，工具将在 PATH 中查找 `c2rust-config`。
 
-## Usage
+## 使用方法
 
-### Basic Command
-
-```bash
-c2rust-clean clean --dir <directory> -- <clean_command>
-```
-
-### Command Format
+### 基本命令
 
 ```bash
-c2rust-clean clean [--feature <feature>] --dir <directory> -- <clean_command>
+c2rust-clean clean --dir <目录> -- <清理命令>
 ```
 
-### Parameters
+### 命令格式
 
-- `--dir <directory>` - **Required**. Directory where the clean command will be executed
-- `-- <clean_command>` - **Required**. The actual clean command to execute (e.g., `make clean`)
-- `--feature <feature>` - **Optional**. Feature name for configuration (default: "default")
+```bash
+c2rust-clean clean [--feature <特性名>] --dir <目录> -- <清理命令>
+```
 
-### Examples
+### 参数说明
 
-#### Basic usage with make clean
+- `--dir <目录>` - **必需**。执行清理命令的目录
+- `-- <清理命令>` - **必需**。实际要执行的清理命令（例如：`make clean`）
+- `--feature <特性名>` - **可选**。配置的特性名称（默认："default"）
+
+### 使用示例
+
+#### 使用 make clean 的基本用法
 ```bash
 c2rust-clean clean --dir build -- make clean
 ```
 
-#### Clean with a specific feature
+#### 使用特定特性进行清理
 ```bash
 c2rust-clean clean --feature debug --dir build -- make clean
 ```
 
-#### Custom clean command
+#### 自定义清理命令
 ```bash
 c2rust-clean clean --dir . -- rm -rf target
 ```
 
-#### Clean with multiple arguments
+#### 带多个参数的清理命令
 ```bash
 c2rust-clean clean --dir build -- cargo clean --target-dir ./target
 ```
 
-#### Using Custom c2rust-config Path
+#### 使用自定义 c2rust-config 路径
 
-If `c2rust-config` is not in your PATH or you want to use a specific version:
+如果 `c2rust-config` 不在 PATH 中或您想使用特定版本：
 
 ```bash
 export C2RUST_CONFIG=/path/to/custom/c2rust-config
 c2rust-clean clean --dir /path/to/project -- make clean
 ```
 
-## How It Works
+## 工作原理
 
-1. **Validation**: Checks if `c2rust-config` is installed
-2. **Execution**: Runs the specified clean command in the target directory
-3. **Configuration**: Saves the configuration using `c2rust-config`:
-   - Saves `clean.dir` with the directory path
-   - Saves `clean` with the complete clean command
+1. **验证**: 检查 `c2rust-config` 是否已安装
+2. **执行**: 在目标目录中运行指定的清理命令
+3. **配置保存**: 使用 `c2rust-config` 保存配置：
+   - 保存 `clean.dir` 为目录路径
+   - 保存 `clean` 为完整的清理命令
 
-## Configuration Storage
+## 配置存储
 
-The tool uses `c2rust-config` to store:
-- `clean.dir`: The directory where clean commands are executed
-- `clean`: The clean command itself
+该工具使用 `c2rust-config` 存储以下配置：
+- `clean.dir`: 执行清理命令的目录
+- `clean`: 清理命令本身
 
-These configurations can be retrieved later using `c2rust-config` for workflow automation.
+这些配置可以稍后通过 `c2rust-config` 检索，用于工作流自动化。
 
-## Error Handling
+## 错误处理
 
-The tool provides clear error messages for common issues:
+该工具为常见问题提供清晰的错误消息：
 
-- **c2rust-config not found**: Install c2rust-config before using this tool
-- **Command execution failed**: The clean command returned a non-zero exit code
-- **Configuration save failed**: Unable to save configuration to c2rust-config
+- **找不到 c2rust-config**: 使用此工具前请先安装 c2rust-config
+- **命令执行失败**: 清理命令返回了非零退出代码
+- **配置保存失败**: 无法将配置保存到 c2rust-config
 
-## Development
+## 开发
 
-### Building
+### 构建
 
 ```bash
 cargo build
 ```
 
-### Running Tests
+### 运行测试
 
 ```bash
 cargo test
 ```
 
-### Integration Tests
+### 集成测试
 
 ```bash
 cargo test --test integration_test
 ```
 
-Note: Some integration tests require `c2rust-config` to be installed.
+注意：某些集成测试需要安装 `c2rust-config`。
 
-## Project Structure
+## 项目结构
 
 ```
 src/
-├── main.rs           # CLI entry point and argument parsing
-├── error.rs          # Error type definitions
-├── executor.rs       # Command execution logic
-└── config_helper.rs  # c2rust-config interaction helpers
+├── main.rs           # CLI 入口点和参数解析
+├── error.rs          # 错误类型定义
+├── executor.rs       # 命令执行逻辑
+└── config_helper.rs  # c2rust-config 交互助手
 
 tests/
-└── integration_test.rs  # Integration tests
+└── integration_test.rs  # 集成测试
 ```
 
-## License
+## 许可证
 
-See LICENSE file for details.
+详见 LICENSE 文件。
 
-## Contributing
+## 贡献
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+欢迎贡献！请随时提交 Pull Request。
