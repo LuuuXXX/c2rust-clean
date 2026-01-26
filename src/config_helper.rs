@@ -80,7 +80,7 @@ pub fn save_config(dir: &str, command: &str, feature: Option<&str>) -> Result<()
 /// { cmd = "make clean", dir = "build" }
 pub fn read_config(feature: Option<&str>) -> Result<CleanConfig> {
     let config_path = get_c2rust_config_path();
-    let feature_args: Vec<&str> = if let Some(f) = feature {
+    let feature_args = if let Some(f) = feature {
         vec!["--feature", f]
     } else {
         vec![]
@@ -118,8 +118,11 @@ pub fn read_config(feature: Option<&str>) -> Result<CleanConfig> {
 fn parse_clean_config(s: &str) -> Result<CleanConfig> {
     let mut config = CleanConfig::default();
     
-    // Remove surrounding braces and whitespace
-    let content = s.trim().trim_start_matches('{').trim_end_matches('}').trim();
+    // Remove surrounding braces: "{ ... }" -> "..."
+    let content = s.trim()
+        .strip_prefix('{').unwrap_or(s.trim())
+        .strip_suffix('}').unwrap_or(s.trim())
+        .trim();
     
     // Split by comma to get individual key-value pairs
     for part in content.split(',') {
@@ -256,6 +259,11 @@ mod tests {
         // Test reverse order
         let result = parse_clean_config("{ dir = \"build\", cmd = \"make clean\" }").unwrap();
         assert_eq!(result.command, Some("make clean".to_string()));
+        assert_eq!(result.dir, Some("build".to_string()));
+
+        // Test value containing '=' character
+        let result = parse_clean_config("{ cmd = \"VAR=value make clean\", dir = \"build\" }").unwrap();
+        assert_eq!(result.command, Some("VAR=value make clean".to_string()));
         assert_eq!(result.dir, Some("build".to_string()));
     }
 }
