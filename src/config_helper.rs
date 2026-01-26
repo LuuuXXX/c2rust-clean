@@ -76,7 +76,8 @@ pub fn save_config(dir: &str, command: &str, feature: Option<&str>) -> Result<()
 
 /// Read clean configuration from c2rust-config
 /// 
-/// Queries specific configuration keys directly instead of listing all configurations
+/// Queries the 'clean' key directly which returns a structured format like:
+/// { cmd = "make clean", dir = "build" }
 pub fn read_config(feature: Option<&str>) -> Result<CleanConfig> {
     let config_path = get_c2rust_config_path();
     let feature_args: Vec<&str> = if let Some(f) = feature {
@@ -85,58 +86,58 @@ pub fn read_config(feature: Option<&str>) -> Result<CleanConfig> {
         vec![]
     };
 
+    // Query the 'clean' configuration key
+    let mut cmd = Command::new(&config_path);
+    cmd.args(&["config", "--make"])
+        .args(&feature_args)
+        .args(&["--list", "clean"]);
+
+    match cmd.output() {
+        Ok(output) if output.status.success() => {
+            let value = String::from_utf8_lossy(&output.stdout);
+            let trimmed = value.trim();
+            if !trimmed.is_empty() {
+                parse_clean_config(trimmed)
+            } else {
+                Ok(CleanConfig::default())
+            }
+        }
+        Ok(_) => {
+            // Config key doesn't exist, return empty config
+            Ok(CleanConfig::default())
+        }
+        Err(e) => Err(Error::ConfigReadFailed(format!(
+            "Failed to execute c2rust-config: {}",
+            e
+        ))),
+    }
+}
+
+/// Parse the clean configuration output from c2rust-config
+/// Expected format: { cmd = "make clean", dir = "build" }
+fn parse_clean_config(s: &str) -> Result<CleanConfig> {
     let mut config = CleanConfig::default();
-
-    // Query clean.dir directly
-    let mut cmd = Command::new(&config_path);
-    cmd.args(&["config", "--make"])
-        .args(&feature_args)
-        .args(&["--list", "clean.dir"]);
-
-    match cmd.output() {
-        Ok(output) if output.status.success() => {
-            let value = String::from_utf8_lossy(&output.stdout);
-            let trimmed = value.trim();
-            if !trimmed.is_empty() {
-                config.dir = Some(remove_quotes(trimmed));
+    
+    // Remove surrounding braces and whitespace
+    let content = s.trim().trim_start_matches('{').trim_end_matches('}').trim();
+    
+    // Split by comma to get individual key-value pairs
+    for part in content.split(',') {
+        let part = part.trim();
+        
+        // Split by '=' to get key and value
+        if let Some((key, value)) = part.split_once('=') {
+            let key = key.trim();
+            let value = remove_quotes(value.trim());
+            
+            match key {
+                "cmd" => config.command = Some(value),
+                "dir" => config.dir = Some(value),
+                _ => {} // Ignore unknown keys
             }
         }
-        Ok(_) => {
-            // Config key doesn't exist, leave as None
-        }
-        Err(e) => {
-            return Err(Error::ConfigReadFailed(format!(
-                "Failed to execute c2rust-config: {}",
-                e
-            )));
-        }
     }
-
-    // Query clean.cmd directly
-    let mut cmd = Command::new(&config_path);
-    cmd.args(&["config", "--make"])
-        .args(&feature_args)
-        .args(&["--list", "clean.cmd"]);
-
-    match cmd.output() {
-        Ok(output) if output.status.success() => {
-            let value = String::from_utf8_lossy(&output.stdout);
-            let trimmed = value.trim();
-            if !trimmed.is_empty() {
-                config.command = Some(remove_quotes(trimmed));
-            }
-        }
-        Ok(_) => {
-            // Config key doesn't exist, leave as None
-        }
-        Err(e) => {
-            return Err(Error::ConfigReadFailed(format!(
-                "Failed to execute c2rust-config: {}",
-                e
-            )));
-        }
-    }
-
+    
     Ok(config)
 }
 
@@ -213,5 +214,48 @@ mod tests {
         
         // Test single quote character
         assert_eq!(remove_quotes("\""), "\"");
+    }
+
+    #[test]
+    fn test_parse_clean_config() {
+        // Test typical output format
+        let result = parse_clean_config("{ cmd = \"make clean\", dir = \"build\" }").unwrap();
+        assert_eq!(result.command, Some("make clean".to_string()));
+        assert_eq!(result.dir, Some("build".to_string()));
+
+        // Test with single quotes
+        let result = parse_clean_config("{ cmd = 'make clean', dir = 'build' }").unwrap();
+        assert_eq!(result.command, Some("make clean".to_string()));
+        assert_eq!(result.dir, Some("build".to_string()));
+
+        // Test without quotes
+        let result = parse_clean_config("{ cmd = make, dir = build }").unwrap();
+        assert_eq!(result.command, Some("make".to_string()));
+        assert_eq!(result.dir, Some("build".to_string()));
+
+        // Test with extra whitespace
+        let result = parse_clean_config("{  cmd  =  \"make clean\"  ,  dir  =  \"build\"  }").unwrap();
+        assert_eq!(result.command, Some("make clean".to_string()));
+        assert_eq!(result.dir, Some("build".to_string()));
+
+        // Test with only cmd
+        let result = parse_clean_config("{ cmd = \"make clean\" }").unwrap();
+        assert_eq!(result.command, Some("make clean".to_string()));
+        assert_eq!(result.dir, None);
+
+        // Test with only dir
+        let result = parse_clean_config("{ dir = \"build\" }").unwrap();
+        assert_eq!(result.command, None);
+        assert_eq!(result.dir, Some("build".to_string()));
+
+        // Test empty braces
+        let result = parse_clean_config("{}").unwrap();
+        assert_eq!(result.command, None);
+        assert_eq!(result.dir, None);
+
+        // Test reverse order
+        let result = parse_clean_config("{ dir = \"build\", cmd = \"make clean\" }").unwrap();
+        assert_eq!(result.command, Some("make clean".to_string()));
+        assert_eq!(result.dir, Some("build".to_string()));
     }
 }
