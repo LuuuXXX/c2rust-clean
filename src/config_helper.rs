@@ -1,6 +1,13 @@
 use crate::error::{Error, Result};
 use std::process::Command;
 
+/// Configuration values read from c2rust-config
+#[derive(Debug, Default, Clone)]
+pub struct CleanConfig {
+    pub dir: Option<String>,
+    pub command: Option<String>,
+}
+
 /// Get the c2rust-config binary path from environment or use default
 fn get_c2rust_config_path() -> String {
     std::env::var("C2RUST_CONFIG").unwrap_or_else(|_| "c2rust-config".to_string())
@@ -67,6 +74,73 @@ pub fn save_config(dir: &str, command: &str, feature: Option<&str>) -> Result<()
     Ok(())
 }
 
+/// Read clean configuration from c2rust-config
+pub fn read_config(feature: Option<&str>) -> Result<CleanConfig> {
+    let config_path = get_c2rust_config_path();
+    let feature_args = if let Some(f) = feature {
+        vec!["--feature", f]
+    } else {
+        vec![]
+    };
+
+    // List all configuration using c2rust-config
+    let mut cmd = Command::new(&config_path);
+    cmd.args(&["config", "--make"])
+        .args(&feature_args)
+        .args(&["--list"]);
+
+    let output = cmd.output().map_err(|e| {
+        Error::ConfigReadFailed(format!("Failed to execute c2rust-config: {}", e))
+    })?;
+
+    if !output.status.success() {
+        // If config file doesn't exist or is empty, return empty config
+        return Ok(CleanConfig::default());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut config = CleanConfig::default();
+
+    // Parse the output to find clean.dir and clean
+    for line in stdout.lines() {
+        let line = line.trim();
+        // Handle both "clean.dir" and clean.dir formats
+        if line.starts_with("clean.dir") || line.starts_with("\"clean.dir\"") {
+            // Format: clean.dir = "value" or "clean.dir" = "value"
+            if let Some(value) = extract_config_value(line) {
+                config.dir = Some(value);
+            }
+        } else if line.starts_with("clean") && !line.starts_with("clean.") {
+            // Format: clean = "value"
+            if let Some(value) = extract_config_value(line) {
+                config.command = Some(value);
+            }
+        }
+    }
+
+    Ok(config)
+}
+
+/// Extract value from config line like: key = "value"
+fn extract_config_value(line: &str) -> Option<String> {
+    // Find the equals sign
+    let parts: Vec<&str> = line.splitn(2, '=').collect();
+    if parts.len() != 2 {
+        return None;
+    }
+
+    let value = parts[1].trim();
+    
+    // Remove quotes if present
+    if value.starts_with('"') && value.ends_with('"') && value.len() >= 2 {
+        Some(value[1..value.len()-1].to_string())
+    } else if value.starts_with('\'') && value.ends_with('\'') && value.len() >= 2 {
+        Some(value[1..value.len()-1].to_string())
+    } else {
+        Some(value.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -111,5 +185,35 @@ mod tests {
         if let Some(val) = original {
             std::env::set_var("C2RUST_CONFIG", val);
         }
+    }
+
+    #[test]
+    fn test_extract_config_value() {
+        // Test with double quotes
+        assert_eq!(
+            extract_config_value("clean.dir = \"build\""),
+            Some("build".to_string())
+        );
+
+        // Test with single quotes
+        assert_eq!(
+            extract_config_value("clean = 'make clean'"),
+            Some("make clean".to_string())
+        );
+
+        // Test without quotes
+        assert_eq!(
+            extract_config_value("key = value"),
+            Some("value".to_string())
+        );
+
+        // Test with spaces
+        assert_eq!(
+            extract_config_value("  clean  =  \"test\"  "),
+            Some("test".to_string())
+        );
+
+        // Test invalid format
+        assert_eq!(extract_config_value("invalid"), None);
     }
 }

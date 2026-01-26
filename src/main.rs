@@ -22,15 +22,15 @@ enum Commands {
 #[derive(Args)]
 struct CommandArgs {
     /// Directory to execute clean command
-    #[arg(long, required = true)]
-    dir: String,
+    #[arg(long)]
+    dir: Option<String>,
 
     /// Feature name (default: "default")
     #[arg(long)]
     feature: Option<String>,
 
     /// Clean command to execute (e.g., "make clean")
-    #[arg(last = true, required = true)]
+    #[arg(last = true)]
     command: Vec<String>,
 }
 
@@ -38,12 +38,33 @@ fn run(args: CommandArgs) -> Result<()> {
     // 1. Check if c2rust-config exists
     config_helper::check_c2rust_config_exists()?;
 
-    // 2. Execute the clean command
-    executor::execute_command(&args.dir, &args.command)?;
+    // 2. Read configuration from file
+    let config = config_helper::read_config(args.feature.as_deref())?;
 
-    // 3. Save configuration using c2rust-config
-    let command_str = args.command.join(" ");
-    config_helper::save_config(&args.dir, &command_str, args.feature.as_deref())?;
+    // 3. Determine final values (CLI overrides config)
+    let dir = args.dir.or(config.dir).ok_or_else(|| {
+        error::Error::MissingParameter(
+            "Directory not specified. Use --dir or set clean.dir in config".to_string(),
+        )
+    })?;
+
+    let command = if !args.command.is_empty() {
+        args.command
+    } else if let Some(cmd_str) = config.command {
+        // Parse command string into Vec<String>
+        cmd_str.split_whitespace().map(|s| s.to_string()).collect()
+    } else {
+        return Err(error::Error::MissingParameter(
+            "Command not specified. Provide command arguments or set clean in config".to_string(),
+        ));
+    };
+
+    // 4. Execute the clean command
+    executor::execute_command(&dir, &command)?;
+
+    // 5. Save configuration using c2rust-config
+    let command_str = command.join(" ");
+    config_helper::save_config(&dir, &command_str, args.feature.as_deref())?;
 
     println!("Clean command executed successfully and configuration saved.");
     Ok(())

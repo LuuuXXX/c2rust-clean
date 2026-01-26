@@ -12,6 +12,12 @@ pub fn execute_command(dir: &str, command: &[String]) -> Result<()> {
     let program = &command[0];
     let args = &command[1..];
 
+    // Print the command being executed
+    let command_str = command.join(" ");
+    println!("Executing command: {}", command_str);
+    println!("In directory: {}", dir);
+    println!();
+
     let output = Command::new(program)
         .args(args)
         .current_dir(dir)
@@ -19,20 +25,38 @@ pub fn execute_command(dir: &str, command: &[String]) -> Result<()> {
         .map_err(|e| {
             Error::CommandExecutionFailed(format!(
                 "Failed to execute command '{}': {}",
-                command.join(" "),
+                command_str,
                 e
             ))
         })?;
 
+    // Print stdout if not empty
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if !stdout.is_empty() {
+        println!("stdout:");
+        println!("{}", stdout);
+    }
+
+    // Print stderr if not empty
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if !stderr.is_empty() {
+        println!("stderr:");
+        println!("{}", stderr);
+    }
+
+    // Print exit status
+    if let Some(code) = output.status.code() {
+        println!("Exit code: {}", code);
+    } else {
+        println!("Process terminated by signal");
+    }
+    println!();
+
     if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let stdout = String::from_utf8_lossy(&output.stdout);
         return Err(Error::CommandExecutionFailed(format!(
-            "Command '{}' failed with exit code {}\nstdout: {}\nstderr: {}",
-            command.join(" "),
+            "Command '{}' failed with exit code {}",
+            command_str,
             output.status.code().unwrap_or(-1),
-            stdout,
-            stderr
         )));
     }
 
