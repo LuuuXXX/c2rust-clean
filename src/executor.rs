@@ -1,7 +1,7 @@
 use crate::error::{Error, Result};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
-/// Execute a command in the specified directory
+/// Execute a command in the specified directory with real-time output
 pub fn execute_command(dir: &str, command: &[String]) -> Result<()> {
     if command.is_empty() {
         return Err(Error::CommandExecutionFailed(
@@ -18,10 +18,13 @@ pub fn execute_command(dir: &str, command: &[String]) -> Result<()> {
     println!("In directory: {}", dir);
     println!();
 
-    let output = Command::new(program)
+    // Spawn the command with inherited stdout/stderr for real-time output
+    let mut child = Command::new(program)
         .args(args)
         .current_dir(dir)
-        .output()
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
         .map_err(|e| {
             Error::CommandExecutionFailed(format!(
                 "Failed to execute command '{}': {}",
@@ -30,33 +33,29 @@ pub fn execute_command(dir: &str, command: &[String]) -> Result<()> {
             ))
         })?;
 
-    // Print stdout if not empty
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    if !stdout.is_empty() {
-        println!("stdout:");
-        println!("{}", stdout);
-    }
-
-    // Print stderr if not empty
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    if !stderr.is_empty() {
-        println!("stderr:");
-        println!("{}", stderr);
-    }
+    // Wait for the command to complete
+    let status = child.wait().map_err(|e| {
+        Error::CommandExecutionFailed(format!(
+            "Failed to wait for command '{}': {}",
+            command_str,
+            e
+        ))
+    })?;
 
     // Print exit status
-    if let Some(code) = output.status.code() {
+    println!();
+    if let Some(code) = status.code() {
         println!("Exit code: {}", code);
     } else {
         println!("Process terminated by signal");
     }
     println!();
 
-    if !output.status.success() {
+    if !status.success() {
         return Err(Error::CommandExecutionFailed(format!(
             "Command '{}' failed with exit code {}",
             command_str,
-            output.status.code().unwrap_or(-1),
+            status.code().unwrap_or(-1),
         )));
     }
 
