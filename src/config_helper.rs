@@ -104,17 +104,25 @@ pub fn read_config(feature: Option<&str>) -> Result<CleanConfig> {
     // Parse the output to find clean.dir and clean
     for line in stdout.lines() {
         let line = line.trim();
+        
+        // Extract key from the line (before '=')
+        let key = line.split('=').next().unwrap_or("").trim();
+        
         // Handle both "clean.dir" and clean.dir formats
-        if line.starts_with("clean.dir") || line.starts_with("\"clean.dir\"") {
-            // Format: clean.dir = "value" or "clean.dir" = "value"
-            if let Some(value) = extract_config_value(line) {
-                config.dir = Some(value);
+        let normalized_key = key.trim_matches('"').trim_matches('\'');
+        
+        match normalized_key {
+            "clean.dir" => {
+                if let Some(value) = extract_config_value(line) {
+                    config.dir = Some(value);
+                }
             }
-        } else if line.starts_with("clean") && !line.starts_with("clean.") {
-            // Format: clean = "value"
-            if let Some(value) = extract_config_value(line) {
-                config.command = Some(value);
+            "clean" => {
+                if let Some(value) = extract_config_value(line) {
+                    config.command = Some(value);
+                }
             }
+            _ => {}
         }
     }
 
@@ -130,14 +138,16 @@ fn extract_config_value(line: &str) -> Option<String> {
     }
 
     let value = parts[1].trim();
-    
-    // Remove quotes if present
-    if value.starts_with('"') && value.ends_with('"') && value.len() >= 2 {
-        Some(value[1..value.len()-1].to_string())
-    } else if value.starts_with('\'') && value.ends_with('\'') && value.len() >= 2 {
-        Some(value[1..value.len()-1].to_string())
+    Some(remove_quotes(value))
+}
+
+/// Remove surrounding quotes from a string
+fn remove_quotes(s: &str) -> String {
+    if (s.starts_with('"') && s.ends_with('"') && s.len() >= 2) 
+        || (s.starts_with('\'') && s.ends_with('\'') && s.len() >= 2) {
+        s[1..s.len()-1].to_string()
     } else {
-        Some(value.to_string())
+        s.to_string()
     }
 }
 

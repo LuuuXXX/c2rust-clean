@@ -52,6 +52,8 @@ fn run(args: CommandArgs) -> Result<()> {
         args.command
     } else if let Some(cmd_str) = config.command {
         // Parse command string into Vec<String>
+        // Note: This uses simple whitespace splitting and doesn't handle quoted arguments.
+        // For commands with quoted arguments, specify them directly on the CLI.
         cmd_str.split_whitespace().map(|s| s.to_string()).collect()
     } else {
         return Err(error::Error::MissingParameter(
