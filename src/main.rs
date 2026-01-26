@@ -68,7 +68,7 @@ fn run(args: CommandArgs) -> Result<()> {
         parsed_command
     } else {
         return Err(error::Error::MissingParameter(
-            "Command not specified. Provide command arguments or set clean in config".to_string(),
+            "Command not specified. Provide command arguments or set clean.cmd in config".to_string(),
         ));
     };
 

@@ -57,7 +57,7 @@ pub fn save_config(dir: &str, command: &str, feature: Option<&str>) -> Result<()
     let mut cmd = Command::new(&config_path);
     cmd.args(&["config", "--make"])
         .args(&feature_args)
-        .args(&["--set", "clean", command]);
+        .args(&["--set", "clean.cmd", command]);
 
     let output = cmd.output().map_err(|e| {
         Error::ConfigSaveFailed(format!("Failed to execute c2rust-config: {}", e))
@@ -101,7 +101,7 @@ pub fn read_config(feature: Option<&str>) -> Result<CleanConfig> {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut config = CleanConfig::default();
 
-    // Parse the output to find clean.dir and clean
+    // Parse the output to find clean.dir and clean.cmd
     for line in stdout.lines() {
         let line = line.trim();
         
@@ -122,7 +122,7 @@ pub fn read_config(feature: Option<&str>) -> Result<CleanConfig> {
                     config.dir = Some(value);
                 }
             }
-            "clean" => {
+            "clean.cmd" => {
                 if let Some(value) = extract_config_value(line) {
                     config.command = Some(value);
                 }
@@ -130,12 +130,12 @@ pub fn read_config(feature: Option<&str>) -> Result<CleanConfig> {
             _ => {
                 // Help users debug near-miss configuration keys related to cleaning
                 if normalized_key.starts_with("clean")
-                    && normalized_key != "clean"
+                    && normalized_key != "clean.cmd"
                     && normalized_key != "clean.dir"
                 {
                     eprintln!(
                         "c2rust-config: ignoring unrecognized configuration key '{}'; \
-                         expected 'clean' or 'clean.dir'",
+                         expected 'clean.cmd' or 'clean.dir'",
                         normalized_key
                     );
                 }
@@ -225,7 +225,7 @@ mod tests {
 
         // Test with single quotes
         assert_eq!(
-            extract_config_value("clean = 'make clean'"),
+            extract_config_value("clean.cmd = 'make clean'"),
             Some("make clean".to_string())
         );
 
@@ -276,7 +276,7 @@ mod tests {
         );
         
         assert_eq!(
-            extract_config_value("clean = \"make clean\""),
+            extract_config_value("clean.cmd = \"make clean\""),
             Some("make clean".to_string())
         );
     }
