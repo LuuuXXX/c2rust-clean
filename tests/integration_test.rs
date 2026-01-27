@@ -140,7 +140,6 @@ fn test_nonexistent_directory() {
 
 #[test]
 fn test_path_is_not_directory() {
-    use std::fs;
     let temp_file = tempfile::NamedTempFile::new().unwrap();
     let file_path = temp_file.path().to_str().unwrap();
     
