@@ -10,9 +10,9 @@ fn test_build_command_basic() {
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
     cmd.arg("clean")
-        .arg("--test.dir")
+        .arg("--dir")
         .arg(dir_path)
-        .arg("--test.cmd")
+        .arg("--cmd")
         .arg("echo")
         .arg("building");
 
@@ -27,9 +27,9 @@ fn test_build_with_multiple_args() {
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
     cmd.arg("clean")
-        .arg("--test.dir")
+        .arg("--dir")
         .arg(dir_path)
-        .arg("--test.cmd")
+        .arg("--cmd")
         .arg("echo")
         .arg("test")
         .arg("build");
@@ -45,9 +45,9 @@ fn test_build_with_hyphenated_args() {
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
     cmd.arg("clean")
-        .arg("--test.dir")
+        .arg("--dir")
         .arg(dir_path)
-        .arg("--test.cmd")
+        .arg("--cmd")
         .arg("ls")
         .arg("-la");
 
@@ -58,15 +58,15 @@ fn test_build_with_hyphenated_args() {
 fn test_missing_build_dir() {
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    // Without --test.dir, should fail
+    // Without --dir, should fail
     cmd.arg("clean")
-        .arg("--test.cmd")
+        .arg("--cmd")
         .arg("echo")
         .arg("test");
 
     cmd.assert()
         .failure()
-        .stderr(predicate::str::contains("--test.dir"));
+        .stderr(predicate::str::contains("--dir"));
 }
 
 #[test]
@@ -76,14 +76,14 @@ fn test_missing_build_cmd() {
 
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    // Without --test.cmd, should fail
+    // Without --cmd, should fail
     cmd.arg("clean")
-        .arg("--test.dir")
+        .arg("--dir")
         .arg(dir_path);
 
     cmd.assert()
         .failure()
-        .stderr(predicate::str::contains("--test.cmd"));
+        .stderr(predicate::str::contains("--cmd"));
 }
 
 #[test]
@@ -118,8 +118,8 @@ fn test_build_subcommand_help() {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Execute clean command"))
-        .stdout(predicate::str::contains("--test.dir"))
-        .stdout(predicate::str::contains("--test.cmd"));
+        .stdout(predicate::str::contains("--dir"))
+        .stdout(predicate::str::contains("--cmd"));
 }
 
 #[test]
@@ -127,9 +127,9 @@ fn test_nonexistent_directory() {
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
     cmd.arg("clean")
-        .arg("--test.dir")
+        .arg("--dir")
         .arg("/nonexistent/directory/path")
-        .arg("--test.cmd")
+        .arg("--cmd")
         .arg("echo")
         .arg("test");
 
@@ -146,9 +146,9 @@ fn test_path_is_not_directory() {
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
     cmd.arg("clean")
-        .arg("--test.dir")
+        .arg("--dir")
         .arg(file_path)
-        .arg("--test.cmd")
+        .arg("--cmd")
         .arg("echo")
         .arg("test");
 
