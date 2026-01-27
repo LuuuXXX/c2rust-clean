@@ -117,7 +117,8 @@ fn test_clean_subcommand_help() {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Execute clean command"))
-        .stdout(predicate::str::contains("--dir"));
+        .stdout(predicate::str::contains("--dir"))
+        .stdout(predicate::str::contains("COMMAND"));
 }
 
 #[test]

@@ -25,7 +25,7 @@ struct CommandArgs {
     dir: String,
 
     /// Clean command to execute (required, can be multiple arguments)
-    #[arg(required = true, num_args = 1.., allow_hyphen_values = true, last = true)]
+    #[arg(value_name = "COMMAND", required = true, num_args = 1.., allow_hyphen_values = true, last = true)]
     cmd: Vec<String>,
 }
 
