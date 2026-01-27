@@ -26,56 +26,56 @@ cargo build --release
 ### 基本命令
 
 ```bash
-c2rust-clean clean --dir <目录> -- <清理命令> [参数...]
+c2rust-clean build --build.dir <目录> --build.cmd <构建命令> [参数...]
 ```
 
 ### 参数说明
 
-- `--dir <目录>` - **必需**。执行清理命令的目录
-- `-- <清理命令> [参数...]` - **必需**。实际要执行的清理命令及其参数（例如：`make clean`）
+- `--build.dir <目录>` - **必需**。执行构建命令的目录
+- `--build.cmd <构建命令> [参数...]` - **必需**。实际要执行的构建命令及其参数（例如：`make all`）
 
 ### 使用示例
 
-#### 使用 make 清理项目
+#### 使用 make 构建项目
 
 ```bash
-c2rust-clean clean --dir /path/to/project -- make clean
+c2rust-clean build --build.dir /path/to/project --build.cmd make all
 ```
 
-#### 使用 cmake 清理项目
+#### 使用 cmake 构建项目
 
 ```bash
-c2rust-clean clean --dir /path/to/build -- cmake --build . --target clean
+c2rust-clean build --build.dir /path/to/build --build.cmd cmake --build .
 ```
 
 #### 清理构建产物
 
 ```bash
-c2rust-clean clean --dir /path/to/project -- make clean
+c2rust-clean build --build.dir /path/to/project --build.cmd make clean
 ```
 
 #### 使用带连字符的参数
 
 ```bash
-c2rust-clean clean --dir /path/to/project -- cargo clean --target-dir ./target
+c2rust-clean build --build.dir /path/to/project --build.cmd cargo clean --target-dir ./target
 ```
 
-#### 自定义清理命令
+#### 自定义构建命令
 
 ```bash
-c2rust-clean clean --dir . -- rm -rf build
+c2rust-clean build --build.dir . --build.cmd rm -rf build
 ```
 
-#### 带多个参数的清理命令
+#### 带多个参数的构建命令
 
 ```bash
-c2rust-clean clean --dir build -- find . -name "*.o" -delete
+c2rust-clean build --build.dir build --build.cmd make -j 4 all
 ```
 
 ## 工作原理
 
-1. **参数验证**: 检查必需的 `--dir` 和清理命令参数是否已提供
-2. **执行**: 在目标目录中运行指定的清理命令，并实时显示输出：
+1. **参数验证**: 检查必需的 `--build.dir` 和 `--build.cmd` 参数是否已提供
+2. **执行**: 在目标目录中运行指定的构建命令，并实时显示输出：
    - 正在执行的完整命令
    - 命令的标准输出 (stdout) - 实时显示
    - 命令的标准错误 (stderr) - 实时显示
@@ -86,24 +86,25 @@ c2rust-clean clean --dir build -- find . -name "*.o" -delete
 执行命令时，工具会显示详细的输出信息：
 
 ```
-Executing command: make clean
+Executing command: make all
 In directory: /path/to/project
 
-rm -f *.o
-rm -f myapp
+gcc -c main.c -o main.o
+gcc -c utils.c -o utils.o
+gcc main.o utils.o -o myapp
 
 Exit code: 0
 
-Clean command executed successfully.
+Build command executed successfully.
 ```
 
 ## 错误处理
 
 该工具为常见问题提供清晰的错误消息：
 
-- **缺少必需参数**: 未提供 --dir 或清理命令参数
-- **命令执行失败**: 清理命令返回了非零退出代码
-- **目录不存在**: 指定的目录不存在
+- **缺少必需参数**: 未提供 --build.dir 或 --build.cmd 参数
+- **命令执行失败**: 构建命令返回了非零退出代码
+- **目录不存在**: 指定的构建目录不存在
 
 ## 开发
 

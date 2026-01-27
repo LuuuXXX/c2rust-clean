@@ -21,33 +21,33 @@ enum Commands {
 #[derive(Args)]
 struct CommandArgs {
     /// Directory to execute clean command (required)
-    #[arg(long = "dir", required = true)]
-    dir: String,
+    #[arg(long = "test.dir", required = true)]
+    test_dir: String,
 
     /// Clean command to execute (required, can be multiple arguments)
-    #[arg(value_name = "COMMAND", required = true, num_args = 1.., allow_hyphen_values = true, last = true)]
-    cmd: Vec<String>,
+    #[arg(long = "test.cmd", required = true, num_args = 1.., allow_hyphen_values = true)]
+    test_cmd: Vec<String>,
 }
 
 fn run(args: CommandArgs) -> Result<()> {
     // Validate that the directory exists
-    let dir_path = std::path::Path::new(&args.dir);
+    let dir_path = std::path::Path::new(&args.test_dir);
     if !dir_path.exists() {
         return Err(error::Error::IoError(std::io::Error::new(
             std::io::ErrorKind::NotFound,
-            format!("Directory does not exist: {}", args.dir),
+            format!("Directory does not exist: {}", args.test_dir),
         )));
     }
     
     if !dir_path.is_dir() {
         return Err(error::Error::IoError(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
-            format!("Path is not a directory: {}", args.dir),
+            format!("Path is not a directory: {}", args.test_dir),
         )));
     }
 
     // Execute the clean command
-    executor::execute_command(&args.dir, &args.cmd)?;
+    executor::execute_command(&args.test_dir, &args.test_cmd)?;
 
     println!("Clean command executed successfully.");
     Ok(())
