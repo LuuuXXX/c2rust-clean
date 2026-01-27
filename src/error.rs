@@ -2,31 +2,15 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum Error {
-    ConfigToolNotFound,
     CommandExecutionFailed(String),
-    ConfigSaveFailed(String),
-    ConfigReadFailed(String),
-    MissingParameter(String),
     IoError(std::io::Error),
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::ConfigToolNotFound => {
-                write!(f, "c2rust-config not found. Please install c2rust-config first.")
-            }
             Error::CommandExecutionFailed(msg) => {
                 write!(f, "Command execution failed: {}", msg)
-            }
-            Error::ConfigSaveFailed(msg) => {
-                write!(f, "Failed to save configuration: {}", msg)
-            }
-            Error::ConfigReadFailed(msg) => {
-                write!(f, "Failed to read configuration: {}", msg)
-            }
-            Error::MissingParameter(msg) => {
-                write!(f, "Missing required parameter: {}", msg)
             }
             Error::IoError(err) => {
                 write!(f, "IO error: {}", err)

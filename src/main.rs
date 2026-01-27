@@ -1,4 +1,3 @@
-mod config_helper;
 mod error;
 mod executor;
 
@@ -15,71 +14,42 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Execute clean command and save configuration
-    Clean(CommandArgs),
+    /// Execute build command
+    Build(CommandArgs),
 }
 
 #[derive(Args)]
 struct CommandArgs {
-    /// Directory to execute clean command
-    #[arg(long)]
-    dir: Option<String>,
+    /// Directory to execute build command (required)
+    #[arg(long = "build.dir", required = true)]
+    build_dir: String,
 
-    /// Feature name (default: "default")
-    #[arg(long)]
-    feature: Option<String>,
-
-    /// Clean command to execute (e.g., "make clean")
-    #[arg(last = true)]
-    command: Vec<String>,
+    /// Build command to execute (required, can be multiple arguments)
+    #[arg(long = "build.cmd", required = true, num_args = 1.., allow_hyphen_values = true)]
+    build_cmd: Vec<String>,
 }
 
 fn run(args: CommandArgs) -> Result<()> {
-    // 1. Check if c2rust-config exists
-    config_helper::check_c2rust_config_exists()?;
+    // Validate that the directory exists
+    let dir_path = std::path::Path::new(&args.build_dir);
+    if !dir_path.exists() {
+        return Err(error::Error::IoError(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("Directory does not exist: {}", args.build_dir),
+        )));
+    }
+    
+    if !dir_path.is_dir() {
+        return Err(error::Error::IoError(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("Path is not a directory: {}", args.build_dir),
+        )));
+    }
 
-    // 2. Read configuration from file
-    let config = config_helper::read_config(args.feature.as_deref())?;
+    // Execute the build command
+    executor::execute_command(&args.build_dir, &args.build_cmd)?;
 
-    // 3. Determine final values (CLI overrides config)
-    let dir = args.dir.or(config.dir).ok_or_else(|| {
-        error::Error::MissingParameter(
-            "Directory not specified. Use --dir or set clean.dir in config".to_string(),
-        )
-    })?;
-
-    let command = if !args.command.is_empty() {
-        args.command
-    } else if let Some(cmd_str) = config.command {
-        // Parse command string into Vec<String>
-        // Note: This uses simple whitespace splitting and doesn't handle quoted arguments.
-        // For commands with quoted arguments, specify them directly on the CLI.
-        let parsed_command: Vec<String> = cmd_str
-            .split_whitespace()
-            .map(|s| s.to_string())
-            .collect();
-
-        if parsed_command.is_empty() {
-            return Err(error::Error::MissingParameter(
-                "Command in config is empty or whitespace-only. Provide command arguments or set a non-empty clean command in config".to_string(),
-            ));
-        }
-
-        parsed_command
-    } else {
-        return Err(error::Error::MissingParameter(
-            "Command not specified. Provide command arguments or set clean.cmd in config".to_string(),
-        ));
-    };
-
-    // 4. Execute the clean command
-    executor::execute_command(&dir, &command)?;
-
-    // 5. Save configuration using c2rust-config
-    let command_str = command.join(" ");
-    config_helper::save_config(&dir, &command_str, args.feature.as_deref())?;
-
-    println!("Clean command executed successfully and configuration saved.");
+    println!("Build command executed successfully.");
     Ok(())
 }
 
@@ -87,7 +57,7 @@ fn main() {
     let cli = Cli::parse();
 
     let result = match cli.command {
-        Commands::Clean(args) => run(args),
+        Commands::Build(args) => run(args),
     };
 
     if let Err(e) = result {

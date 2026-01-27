@@ -1,77 +1,98 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
-use std::fs;
 use tempfile::TempDir;
 
 #[test]
-fn test_clean_command_basic() {
+fn test_build_command_basic() {
     let temp_dir = TempDir::new().unwrap();
     let dir_path = temp_dir.path().to_str().unwrap();
 
-    // Create a test file to clean
-    let test_file = temp_dir.path().join("test.txt");
-    fs::write(&test_file, "test content").unwrap();
-
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    // Note: This test will fail if c2rust-config is not installed
-    // For testing purposes, we'll just test the command parsing
-    cmd.arg("clean")
-        .arg("--dir")
+    cmd.arg("build")
+        .arg("--build.dir")
         .arg(dir_path)
-        .arg("--")
+        .arg("--build.cmd")
         .arg("echo")
-        .arg("cleaning");
+        .arg("building");
 
-    // The command might fail because c2rust-config might not be installed
-    // but at least it should not fail on parsing
-    let _ = cmd.assert();
+    cmd.assert().success();
 }
 
 #[test]
-fn test_clean_with_feature() {
+fn test_build_with_multiple_args() {
     let temp_dir = TempDir::new().unwrap();
     let dir_path = temp_dir.path().to_str().unwrap();
 
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    cmd.arg("clean")
-        .arg("--feature")
-        .arg("debug")
-        .arg("--dir")
+    cmd.arg("build")
+        .arg("--build.dir")
         .arg(dir_path)
-        .arg("--")
+        .arg("--build.cmd")
+        .arg("echo")
+        .arg("test")
+        .arg("build");
+
+    cmd.assert().success();
+}
+
+#[test]
+fn test_build_with_hyphenated_args() {
+    let temp_dir = TempDir::new().unwrap();
+    let dir_path = temp_dir.path().to_str().unwrap();
+
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    cmd.arg("build")
+        .arg("--build.dir")
+        .arg(dir_path)
+        .arg("--build.cmd")
+        .arg("ls")
+        .arg("-la");
+
+    cmd.assert().success();
+}
+
+#[test]
+fn test_missing_build_dir() {
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    // Without --build.dir, should fail
+    cmd.arg("build")
+        .arg("--build.cmd")
         .arg("echo")
         .arg("test");
 
-    // The command might fail because c2rust-config might not be installed
-    let _ = cmd.assert();
-}
-
-#[test]
-fn test_missing_dir_and_command_arguments() {
-    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
-    
-    // Without --dir and command, and without config file, should fail
-    cmd.arg("clean");
-
-    // The error could be about missing parameters or c2rust-config not found
     cmd.assert()
-        .failure();
+        .failure()
+        .stderr(predicate::str::contains("--build.dir"));
 }
 
 #[test]
-fn test_missing_command_argument_without_config() {
+fn test_missing_build_cmd() {
     let temp_dir = TempDir::new().unwrap();
     let dir_path = temp_dir.path().to_str().unwrap();
 
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    cmd.arg("clean")
-        .arg("--dir")
+    // Without --build.cmd, should fail
+    cmd.arg("build")
+        .arg("--build.dir")
         .arg(dir_path);
 
-    // Without command and without config file, should fail
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("--build.cmd"));
+}
+
+#[test]
+fn test_missing_all_arguments() {
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    // Without any arguments, should fail
+    cmd.arg("build");
+
     cmd.assert()
         .failure();
 }
@@ -89,14 +110,49 @@ fn test_help_output() {
 }
 
 #[test]
-fn test_clean_subcommand_help() {
+fn test_build_subcommand_help() {
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    cmd.arg("clean").arg("--help");
+    cmd.arg("build").arg("--help");
 
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("Execute clean command"))
-        .stdout(predicate::str::contains("--dir"))
-        .stdout(predicate::str::contains("--feature"));
+        .stdout(predicate::str::contains("Execute build command"))
+        .stdout(predicate::str::contains("--build.dir"))
+        .stdout(predicate::str::contains("--build.cmd"));
+}
+
+#[test]
+fn test_nonexistent_directory() {
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    cmd.arg("build")
+        .arg("--build.dir")
+        .arg("/nonexistent/directory/path")
+        .arg("--build.cmd")
+        .arg("echo")
+        .arg("test");
+
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("Directory does not exist"));
+}
+
+#[test]
+fn test_path_is_not_directory() {
+    let temp_file = tempfile::NamedTempFile::new().unwrap();
+    let file_path = temp_file.path().to_str().unwrap();
+    
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    cmd.arg("build")
+        .arg("--build.dir")
+        .arg(file_path)
+        .arg("--build.cmd")
+        .arg("echo")
+        .arg("test");
+
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("Path is not a directory"));
 }
