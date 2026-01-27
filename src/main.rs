@@ -6,7 +6,7 @@ use error::Result;
 
 #[derive(Parser)]
 #[command(name = "c2rust-clean")]
-#[command(about = "C project build execution tool for c2rust")]
+#[command(about = "C project build artifact cleaning tool for c2rust")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -30,6 +30,22 @@ struct CommandArgs {
 }
 
 fn run(args: CommandArgs) -> Result<()> {
+    // Validate that the directory exists
+    let dir_path = std::path::Path::new(&args.build_dir);
+    if !dir_path.exists() {
+        return Err(error::Error::IoError(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("Directory does not exist: {}", args.build_dir),
+        )));
+    }
+    
+    if !dir_path.is_dir() {
+        return Err(error::Error::IoError(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("Path is not a directory: {}", args.build_dir),
+        )));
+    }
+
     // Execute the build command
     executor::execute_command(&args.build_dir, &args.build_cmd)?;
 

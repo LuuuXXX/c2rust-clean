@@ -106,7 +106,7 @@ fn test_help_output() {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("c2rust-clean"))
-        .stdout(predicate::str::contains("C project build execution tool"));
+        .stdout(predicate::str::contains("C project build artifact cleaning tool"));
 }
 
 #[test]
@@ -120,4 +120,40 @@ fn test_build_subcommand_help() {
         .stdout(predicate::str::contains("Execute build command"))
         .stdout(predicate::str::contains("--build.dir"))
         .stdout(predicate::str::contains("--build.cmd"));
+}
+
+#[test]
+fn test_nonexistent_directory() {
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    cmd.arg("build")
+        .arg("--build.dir")
+        .arg("/nonexistent/directory/path")
+        .arg("--build.cmd")
+        .arg("echo")
+        .arg("test");
+
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("Directory does not exist"));
+}
+
+#[test]
+fn test_path_is_not_directory() {
+    use std::fs;
+    let temp_file = tempfile::NamedTempFile::new().unwrap();
+    let file_path = temp_file.path().to_str().unwrap();
+    
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    cmd.arg("build")
+        .arg("--build.dir")
+        .arg(file_path)
+        .arg("--build.cmd")
+        .arg("echo")
+        .arg("test");
+
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("Path is not a directory"));
 }
