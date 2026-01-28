@@ -47,7 +47,7 @@ fn run(args: CommandArgs) -> Result<()> {
     // 1. Get the current working directory (where the command is executed)
     let current_dir = std::env::current_dir()?;
     
-    // 2. Find the project root (where .c2rust will be created)
+    // 2. Find the project root (where .c2rust is located)
     // Start from current directory and search upward for .c2rust or use current as root
     let project_root = find_project_root(&current_dir)?;
     

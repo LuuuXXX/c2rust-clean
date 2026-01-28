@@ -55,7 +55,7 @@ fn test_missing_clean_cmd() {
 
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    // Without --, should fail
+    // Without any command arguments, should fail (CLEAN_CMD is required)
     cmd.current_dir(temp_dir.path())
         .arg("clean");
 
@@ -65,10 +65,11 @@ fn test_missing_clean_cmd() {
 }
 
 #[test]
-fn test_without_separator_works_but_not_recommended() {
+fn test_separator_optional_for_simple_commands() {
     // Note: trailing_var_arg captures all args, so -- is technically optional
     // However, without --, arguments starting with - or -- won't work correctly
-    // This test shows it works for simple cases, but -- is still recommended
+    // as they'll be interpreted as flags for c2rust-clean
+    // This test shows it works for simple commands, but -- is necessary for args with hyphens
     let temp_dir = TempDir::new().unwrap();
 
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
@@ -150,7 +151,7 @@ fn test_project_root_detection() {
     cmd.assert()
         .success()
         .stderr(predicate::str::contains("Project root:"))
-        .stderr(predicate::str::contains("Relative clean directory:"));
+        .stderr(predicate::str::contains("Relative clean directory: subdir"));
 }
 
 #[test]
