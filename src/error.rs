@@ -4,6 +4,7 @@ use std::fmt;
 pub enum Error {
     CommandExecutionFailed(String),
     IoError(std::io::Error),
+    ConfigError(String),
 }
 
 impl fmt::Display for Error {
@@ -14,6 +15,9 @@ impl fmt::Display for Error {
             }
             Error::IoError(err) => {
                 write!(f, "IO error: {}", err)
+            }
+            Error::ConfigError(msg) => {
+                write!(f, "Configuration error: {}", msg)
             }
         }
     }
