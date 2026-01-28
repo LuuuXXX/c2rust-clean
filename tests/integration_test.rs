@@ -1,53 +1,48 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
+use std::fs;
 use tempfile::TempDir;
 
 #[test]
-fn test_build_command_basic() {
+fn test_clean_command_basic() {
     let temp_dir = TempDir::new().unwrap();
-    let dir_path = temp_dir.path().to_str().unwrap();
-
+    
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    cmd.arg("clean")
-        .arg("--dir")
-        .arg(dir_path)
-        .arg("--cmd")
+    cmd.current_dir(temp_dir.path())
+        .arg("clean")
+        .arg("--")
         .arg("echo")
-        .arg("building");
+        .arg("cleaning");
 
     cmd.assert().success();
 }
 
 #[test]
-fn test_build_with_multiple_args() {
+fn test_clean_with_multiple_args() {
     let temp_dir = TempDir::new().unwrap();
-    let dir_path = temp_dir.path().to_str().unwrap();
 
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    cmd.arg("clean")
-        .arg("--dir")
-        .arg(dir_path)
-        .arg("--cmd")
+    cmd.current_dir(temp_dir.path())
+        .arg("clean")
+        .arg("--")
         .arg("echo")
         .arg("test")
-        .arg("build");
+        .arg("clean");
 
     cmd.assert().success();
 }
 
 #[test]
-fn test_build_with_hyphenated_args() {
+fn test_clean_with_hyphenated_args() {
     let temp_dir = TempDir::new().unwrap();
-    let dir_path = temp_dir.path().to_str().unwrap();
 
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    cmd.arg("clean")
-        .arg("--dir")
-        .arg(dir_path)
-        .arg("--cmd")
+    cmd.current_dir(temp_dir.path())
+        .arg("clean")
+        .arg("--")
         .arg("ls")
         .arg("-la");
 
@@ -55,46 +50,35 @@ fn test_build_with_hyphenated_args() {
 }
 
 #[test]
-fn test_missing_build_dir() {
+fn test_missing_clean_cmd() {
+    let temp_dir = TempDir::new().unwrap();
+
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    // Without --dir, should fail
-    cmd.arg("clean")
-        .arg("--cmd")
+    // Without --, should fail
+    cmd.current_dir(temp_dir.path())
+        .arg("clean");
+
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("CLEAN_CMD"));
+}
+
+#[test]
+fn test_without_separator_still_works() {
+    // Note: trailing_var_arg captures all args, so -- is optional but recommended
+    let temp_dir = TempDir::new().unwrap();
+
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    // Without --, still works due to trailing_var_arg
+    cmd.current_dir(temp_dir.path())
+        .arg("clean")
         .arg("echo")
         .arg("test");
 
     cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("--dir"));
-}
-
-#[test]
-fn test_missing_build_cmd() {
-    let temp_dir = TempDir::new().unwrap();
-    let dir_path = temp_dir.path().to_str().unwrap();
-
-    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
-    
-    // Without --cmd, should fail
-    cmd.arg("clean")
-        .arg("--dir")
-        .arg(dir_path);
-
-    cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("--cmd"));
-}
-
-#[test]
-fn test_missing_all_arguments() {
-    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
-    
-    // Without any arguments, should fail
-    cmd.arg("clean");
-
-    cmd.assert()
-        .failure();
+        .success();
 }
 
 #[test]
@@ -110,7 +94,7 @@ fn test_help_output() {
 }
 
 #[test]
-fn test_build_subcommand_help() {
+fn test_clean_subcommand_help() {
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
     cmd.arg("clean").arg("--help");
@@ -118,41 +102,50 @@ fn test_build_subcommand_help() {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Execute clean command"))
-        .stdout(predicate::str::contains("--dir"))
-        .stdout(predicate::str::contains("--cmd"));
+        .stdout(predicate::str::contains("CLEAN_CMD"));
 }
 
 #[test]
-fn test_nonexistent_directory() {
+fn test_project_root_detection() {
+    // Create a temporary directory with .c2rust subdirectory
+    let temp_dir = TempDir::new().unwrap();
+    let c2rust_dir = temp_dir.path().join(".c2rust");
+    fs::create_dir(&c2rust_dir).unwrap();
+    
+    // Create a subdirectory for running the command
+    let sub_dir = temp_dir.path().join("subdir");
+    fs::create_dir(&sub_dir).unwrap();
+
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    cmd.arg("clean")
-        .arg("--dir")
-        .arg("/nonexistent/directory/path")
-        .arg("--cmd")
+    cmd.current_dir(&sub_dir)
+        .arg("clean")
+        .arg("--")
         .arg("echo")
         .arg("test");
 
     cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("Directory does not exist"));
+        .success()
+        .stdout(predicate::str::contains("Project root:"))
+        .stdout(predicate::str::contains("Relative clean directory:"));
 }
 
 #[test]
-fn test_path_is_not_directory() {
-    let temp_file = tempfile::NamedTempFile::new().unwrap();
-    let file_path = temp_file.path().to_str().unwrap();
+fn test_command_execution_in_current_dir() {
+    let temp_dir = TempDir::new().unwrap();
     
+    // Create a test file in the temp directory
+    let test_file = temp_dir.path().join("test.txt");
+    fs::write(&test_file, "test content").unwrap();
+
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    cmd.arg("clean")
-        .arg("--dir")
-        .arg(file_path)
-        .arg("--cmd")
-        .arg("echo")
-        .arg("test");
+    cmd.current_dir(temp_dir.path())
+        .arg("clean")
+        .arg("--")
+        .arg("ls")
+        .arg("test.txt");
 
     cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("Path is not a directory"));
+        .success();
 }
