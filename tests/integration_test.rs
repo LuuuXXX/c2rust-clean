@@ -1,15 +1,53 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::fs;
+use std::io::Write;
+use std::path::PathBuf;
 use tempfile::TempDir;
+
+/// Helper function to create a mock c2rust-config script for testing
+fn create_mock_c2rust_config(temp_dir: &TempDir) -> PathBuf {
+    let mock_script = temp_dir.path().join("mock-c2rust-config");
+
+    #[cfg(unix)]
+    {
+        let mut script = fs::File::create(&mock_script).unwrap();
+        writeln!(script, "#!/bin/bash").unwrap();
+        writeln!(script, "if [ \"$1\" = \"--help\" ]; then").unwrap();
+        writeln!(script, "  exit 0").unwrap();
+        writeln!(script, "fi").unwrap();
+        writeln!(script, "exit 0").unwrap();
+        
+        // Make script executable
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&mock_script).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&mock_script, perms).unwrap();
+        
+        mock_script
+    }
+
+    #[cfg(windows)]
+    {
+        let mock_script = mock_script.with_extension("bat");
+        let mut script = fs::File::create(&mock_script).unwrap();
+        writeln!(script, "@echo off").unwrap();
+        writeln!(script, "if \"%1\"==\"--help\" exit /b 0").unwrap();
+        writeln!(script, "exit /b 0").unwrap();
+        
+        mock_script
+    }
+}
 
 #[test]
 fn test_clean_command_basic() {
     let temp_dir = TempDir::new().unwrap();
+    let mock_config = create_mock_c2rust_config(&temp_dir);
     
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    cmd.current_dir(temp_dir.path())
+    cmd.env("C2RUST_CONFIG", &mock_config)
+        .current_dir(temp_dir.path())
         .arg("clean")
         .arg("--")
         .arg("echo")
@@ -21,10 +59,12 @@ fn test_clean_command_basic() {
 #[test]
 fn test_clean_with_multiple_args() {
     let temp_dir = TempDir::new().unwrap();
+    let mock_config = create_mock_c2rust_config(&temp_dir);
 
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    cmd.current_dir(temp_dir.path())
+    cmd.env("C2RUST_CONFIG", &mock_config)
+        .current_dir(temp_dir.path())
         .arg("clean")
         .arg("--")
         .arg("echo")
@@ -37,10 +77,12 @@ fn test_clean_with_multiple_args() {
 #[test]
 fn test_clean_with_hyphenated_args() {
     let temp_dir = TempDir::new().unwrap();
+    let mock_config = create_mock_c2rust_config(&temp_dir);
 
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    cmd.current_dir(temp_dir.path())
+    cmd.env("C2RUST_CONFIG", &mock_config)
+        .current_dir(temp_dir.path())
         .arg("clean")
         .arg("--")
         .arg("ls")
@@ -71,11 +113,13 @@ fn test_separator_optional_for_simple_commands() {
     // as they'll be interpreted as flags for c2rust-clean
     // This test shows it works for simple commands, but -- is necessary for args with hyphens
     let temp_dir = TempDir::new().unwrap();
+    let mock_config = create_mock_c2rust_config(&temp_dir);
 
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
     // Without --, still works for simple commands without flags
-    cmd.current_dir(temp_dir.path())
+    cmd.env("C2RUST_CONFIG", &mock_config)
+        .current_dir(temp_dir.path())
         .arg("clean")
         .arg("echo")
         .arg("test");
@@ -88,12 +132,14 @@ fn test_separator_optional_for_simple_commands() {
 fn test_project_root_fallback() {
     // Test that when no .c2rust directory is found, current dir is used as root
     let temp_dir = TempDir::new().unwrap();
+    let mock_config = create_mock_c2rust_config(&temp_dir);
     
     // Don't create .c2rust directory - should use current dir as project root
 
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    cmd.current_dir(temp_dir.path())
+    cmd.env("C2RUST_CONFIG", &mock_config)
+        .current_dir(temp_dir.path())
         .arg("clean")
         .arg("--")
         .arg("echo")
@@ -133,6 +179,7 @@ fn test_clean_subcommand_help() {
 fn test_project_root_detection() {
     // Create a temporary directory with .c2rust subdirectory
     let temp_dir = TempDir::new().unwrap();
+    let mock_config = create_mock_c2rust_config(&temp_dir);
     let c2rust_dir = temp_dir.path().join(".c2rust");
     fs::create_dir(&c2rust_dir).unwrap();
     
@@ -142,7 +189,8 @@ fn test_project_root_detection() {
 
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    cmd.current_dir(&sub_dir)
+    cmd.env("C2RUST_CONFIG", &mock_config)
+        .current_dir(&sub_dir)
         .arg("clean")
         .arg("--")
         .arg("echo")
@@ -157,6 +205,7 @@ fn test_project_root_detection() {
 #[test]
 fn test_command_execution_in_current_dir() {
     let temp_dir = TempDir::new().unwrap();
+    let mock_config = create_mock_c2rust_config(&temp_dir);
     
     // Create a test file in the temp directory
     let test_file = temp_dir.path().join("test.txt");
@@ -164,7 +213,8 @@ fn test_command_execution_in_current_dir() {
 
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    cmd.current_dir(temp_dir.path())
+    cmd.env("C2RUST_CONFIG", &mock_config)
+        .current_dir(temp_dir.path())
         .arg("clean")
         .arg("--")
         .arg("ls")
@@ -172,4 +222,143 @@ fn test_command_execution_in_current_dir() {
 
     cmd.assert()
         .success();
+}
+
+#[test]
+fn test_config_tool_not_found() {
+    // Test that when C2RUST_CONFIG points to a non-existent path,
+    // the CLI exits with ConfigToolNotFound error
+    let temp_dir = TempDir::new().unwrap();
+
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    cmd.current_dir(temp_dir.path())
+        .env("C2RUST_CONFIG", "/nonexistent/path/to/c2rust-config")
+        .arg("clean")
+        .arg("--")
+        .arg("echo")
+        .arg("test");
+
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("c2rust-config not found"));
+}
+
+#[test]
+fn test_feature_parameter_with_mock_config() {
+    // Test that --feature parameter is passed through to c2rust-config
+    let temp_dir = TempDir::new().unwrap();
+    
+    // Create a mock c2rust-config script that logs its arguments
+    let mock_script = temp_dir.path().join("mock-c2rust-config");
+    let log_file = temp_dir.path().join("config.log");
+
+    #[cfg(unix)]
+    {
+        let mut script = fs::File::create(&mock_script).unwrap();
+        writeln!(script, "#!/bin/bash").unwrap();
+        writeln!(script, "if [ \"$1\" = \"--help\" ]; then").unwrap();
+        writeln!(script, "  exit 0").unwrap();
+        writeln!(script, "fi").unwrap();
+        writeln!(script, "echo \"$@\" >> {:?}", log_file).unwrap();
+        writeln!(script, "exit 0").unwrap();
+        
+        // Make script executable
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&mock_script).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&mock_script, perms).unwrap();
+    }
+
+    #[cfg(windows)]
+    {
+        let mock_script = mock_script.with_extension("bat");
+        let mut script = fs::File::create(&mock_script).unwrap();
+        writeln!(script, "@echo off").unwrap();
+        writeln!(script, "if \"%1\"==\"--help\" exit /b 0").unwrap();
+        writeln!(script, "echo %* >> {:?}", log_file).unwrap();
+        writeln!(script, "exit /b 0").unwrap();
+    }
+
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    #[cfg(unix)]
+    cmd.env("C2RUST_CONFIG", &mock_script);
+    #[cfg(windows)]
+    cmd.env("C2RUST_CONFIG", mock_script.with_extension("bat"));
+    
+    cmd.current_dir(temp_dir.path())
+        .arg("clean")
+        .arg("--feature")
+        .arg("myfeature")
+        .arg("--")
+        .arg("echo")
+        .arg("test");
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("✓ Configuration saved"));
+
+    // Verify that --feature myfeature was passed to c2rust-config
+    let log_content = fs::read_to_string(&log_file).unwrap();
+    assert!(log_content.contains("--feature"), "Expected --feature in log");
+    assert!(log_content.contains("myfeature"), "Expected myfeature in log");
+}
+
+#[test]
+fn test_default_feature_when_not_specified() {
+    // Test that when --feature is not specified, "default" is used
+    let temp_dir = TempDir::new().unwrap();
+    
+    // Create a mock c2rust-config script that logs its arguments
+    let mock_script = temp_dir.path().join("mock-c2rust-config-default");
+    let log_file = temp_dir.path().join("config-default.log");
+
+    #[cfg(unix)]
+    {
+        let mut script = fs::File::create(&mock_script).unwrap();
+        writeln!(script, "#!/bin/bash").unwrap();
+        writeln!(script, "if [ \"$1\" = \"--help\" ]; then").unwrap();
+        writeln!(script, "  exit 0").unwrap();
+        writeln!(script, "fi").unwrap();
+        writeln!(script, "echo \"$@\" >> {:?}", log_file).unwrap();
+        writeln!(script, "exit 0").unwrap();
+        
+        // Make script executable
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&mock_script).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&mock_script, perms).unwrap();
+    }
+
+    #[cfg(windows)]
+    {
+        let mock_script = mock_script.with_extension("bat");
+        let mut script = fs::File::create(&mock_script).unwrap();
+        writeln!(script, "@echo off").unwrap();
+        writeln!(script, "if \"%1\"==\"--help\" exit /b 0").unwrap();
+        writeln!(script, "echo %* >> {:?}", log_file).unwrap();
+        writeln!(script, "exit /b 0").unwrap();
+    }
+
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    #[cfg(unix)]
+    cmd.env("C2RUST_CONFIG", &mock_script);
+    #[cfg(windows)]
+    cmd.env("C2RUST_CONFIG", mock_script.with_extension("bat"));
+    
+    cmd.current_dir(temp_dir.path())
+        .arg("clean")
+        .arg("--")
+        .arg("echo")
+        .arg("test");
+
+    cmd.assert()
+        .success();
+
+    // Verify that --feature default was passed to c2rust-config
+    let log_content = fs::read_to_string(&log_file).unwrap();
+    assert!(log_content.contains("--feature"), "Expected --feature in log");
+    assert!(log_content.contains("default"), "Expected default in log");
 }
