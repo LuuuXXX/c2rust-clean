@@ -105,18 +105,143 @@ mod tests {
 
     #[test]
     fn test_check_c2rust_config_exists_with_invalid_path() {
-        // Create a temporary environment where we can safely test
-        // This test checks that check_c2rust_config_exists returns an error
-        // when the config tool doesn't exist
+        // Save the current C2RUST_CONFIG value to restore after the test
+        let original = std::env::var("C2RUST_CONFIG").ok();
+
+        // Point C2RUST_CONFIG to a path that definitely does not exist
         let nonexistent_path = "/this/path/definitely/does/not/exist/c2rust-config-xyz123";
-        
-        // Directly test with a Command that we know will fail
-        let result = Command::new(nonexistent_path)
-            .arg("--help")
-            .output()
-            .ok()
-            .filter(|output| output.status.success());
-        
-        assert!(result.is_none());
+        std::env::set_var("C2RUST_CONFIG", nonexistent_path);
+
+        // Now check that the helper reports the tool as not found
+        let result = check_c2rust_config_exists();
+        match result {
+            Err(Error::ConfigToolNotFound) => {}
+            other => panic!(
+                "expected Err(Error::ConfigToolNotFound), got {:?}",
+                other
+            ),
+        }
+
+        // Restore the original C2RUST_CONFIG value
+        match original {
+            Some(val) => std::env::set_var("C2RUST_CONFIG", val),
+            None => std::env::remove_var("C2RUST_CONFIG"),
+        }
+    }
+
+    #[test]
+    fn test_save_config_with_mock_success() {
+        use std::env;
+        use std::fs;
+        use std::io::Write;
+        use tempfile::TempDir;
+
+        // Save the current C2RUST_CONFIG value
+        let original = env::var("C2RUST_CONFIG").ok();
+
+        // Create a temp directory and mock c2rust-config script
+        let temp_dir = TempDir::new().unwrap();
+        let mock_script_path = temp_dir.path().join("mock-c2rust-config");
+
+        #[cfg(unix)]
+        {
+            let mut script = fs::File::create(&mock_script_path).unwrap();
+            writeln!(script, "#!/bin/bash").unwrap();
+            writeln!(script, "exit 0").unwrap();
+            
+            // Make script executable
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&mock_script_path).unwrap().permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&mock_script_path, perms).unwrap();
+        }
+
+        #[cfg(windows)]
+        {
+            let mut script = fs::File::create(&mock_script_path.with_extension("bat")).unwrap();
+            writeln!(script, "@echo off").unwrap();
+            writeln!(script, "exit /b 0").unwrap();
+        }
+
+        // Point C2RUST_CONFIG to our mock script
+        #[cfg(unix)]
+        env::set_var("C2RUST_CONFIG", &mock_script_path);
+        #[cfg(windows)]
+        env::set_var("C2RUST_CONFIG", mock_script_path.with_extension("bat"));
+
+        // Test save_config
+        let project_root = temp_dir.path();
+        let result = save_config("src", "make clean", Some("default"), project_root);
+
+        // Should succeed
+        assert!(result.is_ok(), "Expected save_config to succeed, got: {:?}", result);
+
+        // Restore the original C2RUST_CONFIG value
+        match original {
+            Some(val) => env::set_var("C2RUST_CONFIG", val),
+            None => env::remove_var("C2RUST_CONFIG"),
+        }
+    }
+
+    #[test]
+    fn test_save_config_failure() {
+        use std::env;
+        use std::fs;
+        use std::io::Write;
+        use tempfile::TempDir;
+
+        // Save the current C2RUST_CONFIG value
+        let original = env::var("C2RUST_CONFIG").ok();
+
+        // Create a temp directory and mock c2rust-config script that fails
+        let temp_dir = TempDir::new().unwrap();
+        let mock_script_path = temp_dir.path().join("mock-c2rust-config-fail");
+
+        #[cfg(unix)]
+        {
+            let mut script = fs::File::create(&mock_script_path).unwrap();
+            writeln!(script, "#!/bin/bash").unwrap();
+            writeln!(script, "echo 'Error: failed to save config' >&2").unwrap();
+            writeln!(script, "exit 1").unwrap();
+            
+            // Make script executable
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&mock_script_path).unwrap().permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&mock_script_path, perms).unwrap();
+        }
+
+        #[cfg(windows)]
+        {
+            let mut script = fs::File::create(&mock_script_path.with_extension("bat")).unwrap();
+            writeln!(script, "@echo off").unwrap();
+            writeln!(script, "echo Error: failed to save config 1>&2").unwrap();
+            writeln!(script, "exit /b 1").unwrap();
+        }
+
+        // Point C2RUST_CONFIG to our failing mock script
+        #[cfg(unix)]
+        env::set_var("C2RUST_CONFIG", &mock_script_path);
+        #[cfg(windows)]
+        env::set_var("C2RUST_CONFIG", mock_script_path.with_extension("bat"));
+
+        // Test save_config
+        let project_root = temp_dir.path();
+        let result = save_config("src", "make clean", Some("default"), project_root);
+
+        // Should fail with ConfigSaveFailed
+        match result {
+            Err(Error::ConfigSaveFailed(msg)) => {
+                assert!(msg.contains("Failed to save clean.dir"), 
+                       "Expected error message about clean.dir, got: {}", msg);
+            }
+            other => panic!("Expected Err(ConfigSaveFailed), got: {:?}", other),
+        }
+
+        // Restore the original C2RUST_CONFIG value
+        match original {
+            Some(val) => env::set_var("C2RUST_CONFIG", val),
+            None => env::remove_var("C2RUST_CONFIG"),
+        }
     }
 }
