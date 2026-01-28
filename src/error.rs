@@ -2,6 +2,8 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum Error {
+    ConfigToolNotFound,
+    ConfigSaveFailed(String),
     CommandExecutionFailed(String),
     IoError(std::io::Error),
 }
@@ -9,6 +11,12 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Error::ConfigToolNotFound => {
+                write!(f, "c2rust-config not found. Please install c2rust-config first.")
+            }
+            Error::ConfigSaveFailed(msg) => {
+                write!(f, "Failed to save configuration: {}", msg)
+            }
             Error::CommandExecutionFailed(msg) => {
                 write!(f, "Command execution failed: {}", msg)
             }

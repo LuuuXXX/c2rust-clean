@@ -1,3 +1,4 @@
+mod config_helper;
 mod error;
 mod executor;
 
@@ -21,6 +22,10 @@ enum Commands {
 
 #[derive(Args)]
 struct CommandArgs {
+    /// Optional feature name (default: "default")
+    #[arg(long)]
+    feature: Option<String>,
+
     /// Clean command to execute - use after '--' separator
     /// Example: c2rust-clean clean -- make clean
     #[arg(trailing_var_arg = true, allow_hyphen_values = true, required = true, value_name = "CLEAN_CMD")]
@@ -44,14 +49,20 @@ fn find_project_root(start_dir: &Path) -> Result<PathBuf> {
 }
 
 fn run(args: CommandArgs) -> Result<()> {
-    // 1. Get the current working directory (where the command is executed)
+    // 1. Check if c2rust-config exists
+    config_helper::check_c2rust_config_exists()?;
+
+    // 2. Get feature name (default to "default")
+    let feature = args.feature.as_deref().unwrap_or("default");
+
+    // 3. Get the current working directory (where the command is executed)
     let current_dir = std::env::current_dir()?;
     
-    // 2. Find the project root (where .c2rust is located)
+    // 4. Find the project root (where .c2rust is located)
     // Start from current directory and search upward for .c2rust or use current as root
     let project_root = find_project_root(&current_dir)?;
     
-    // 3. Calculate the clean directory relative to project root
+    // 5. Calculate the clean directory relative to project root
     let clean_dir_relative = current_dir.strip_prefix(&project_root)
         .map(|p| {
             if p.as_os_str().is_empty() {
@@ -74,7 +85,12 @@ fn run(args: CommandArgs) -> Result<()> {
     // Execute the clean command in the current directory
     executor::execute_command(&current_dir, &args.clean_cmd)?;
 
-    println!("Clean command executed successfully.");
+    // Save configuration using c2rust-config
+    let command_str = args.clean_cmd.join(" ");
+    config_helper::save_config(&clean_dir_relative, &command_str, Some(feature), &project_root)?;
+
+    println!("\n✓ Clean command executed successfully.");
+    println!("✓ Configuration saved.");
     Ok(())
 }
 
