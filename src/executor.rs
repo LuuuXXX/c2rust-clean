@@ -1,8 +1,9 @@
 use crate::error::{Error, Result};
+use std::path::Path;
 use std::process::{Command, Stdio};
 
 /// Execute a command in the specified directory with real-time output
-pub fn execute_command(dir: &str, command: &[String]) -> Result<()> {
+pub fn execute_command(dir: &Path, command: &[String]) -> Result<()> {
     if command.is_empty() {
         return Err(Error::CommandExecutionFailed(
             "No command provided".to_string(),
@@ -14,7 +15,7 @@ pub fn execute_command(dir: &str, command: &[String]) -> Result<()> {
 
     // Print the command being executed
     println!("Executing command: {} {}", program, args.join(" "));
-    println!("In directory: {}", dir);
+    println!("In directory: {}", dir.display());
     println!();
 
     // Spawn the command with inherited stdout/stderr for real-time output
@@ -70,14 +71,14 @@ mod tests {
 
     #[test]
     fn test_execute_command_empty() {
-        let result = execute_command(".", &[]);
+        let result = execute_command(std::path::Path::new("."), &[]);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_execute_command_basic() {
         // Test with a simple command that should succeed
-        let result = execute_command(".", &["echo".to_string(), "test".to_string()]);
+        let result = execute_command(std::path::Path::new("."), &["echo".to_string(), "test".to_string()]);
         assert!(result.is_ok());
     }
 }
