@@ -65,13 +65,15 @@ fn test_missing_clean_cmd() {
 }
 
 #[test]
-fn test_without_separator_still_works() {
-    // Note: trailing_var_arg captures all args, so -- is optional but recommended
+fn test_without_separator_works_but_not_recommended() {
+    // Note: trailing_var_arg captures all args, so -- is technically optional
+    // However, without --, arguments starting with - or -- won't work correctly
+    // This test shows it works for simple cases, but -- is still recommended
     let temp_dir = TempDir::new().unwrap();
 
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    // Without --, still works due to trailing_var_arg
+    // Without --, still works for simple commands without flags
     cmd.current_dir(temp_dir.path())
         .arg("clean")
         .arg("echo")
@@ -79,6 +81,27 @@ fn test_without_separator_still_works() {
 
     cmd.assert()
         .success();
+}
+
+#[test]
+fn test_project_root_fallback() {
+    // Test that when no .c2rust directory is found, current dir is used as root
+    let temp_dir = TempDir::new().unwrap();
+    
+    // Don't create .c2rust directory - should use current dir as project root
+
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    cmd.current_dir(temp_dir.path())
+        .arg("clean")
+        .arg("--")
+        .arg("echo")
+        .arg("test");
+
+    cmd.assert()
+        .success()
+        .stderr(predicate::str::contains("Project root:"))
+        .stderr(predicate::str::contains("Relative clean directory: ."));
 }
 
 #[test]
@@ -126,8 +149,8 @@ fn test_project_root_detection() {
 
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("Project root:"))
-        .stdout(predicate::str::contains("Relative clean directory:"));
+        .stderr(predicate::str::contains("Project root:"))
+        .stderr(predicate::str::contains("Relative clean directory:"));
 }
 
 #[test]

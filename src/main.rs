@@ -45,10 +45,7 @@ fn find_project_root(start_dir: &Path) -> Result<PathBuf> {
 
 fn run(args: CommandArgs) -> Result<()> {
     // 1. Get the current working directory (where the command is executed)
-    let current_dir = std::env::current_dir()
-        .map_err(|e| error::Error::CommandExecutionFailed(
-            format!("Failed to get current directory: {}", e)
-        ))?;
+    let current_dir = std::env::current_dir()?;
     
     // 2. Find the project root (where .c2rust will be created)
     // Start from current directory and search upward for .c2rust or use current as root
@@ -68,11 +65,11 @@ fn run(args: CommandArgs) -> Result<()> {
             ".".to_string()
         });
 
-    // Print the calculated paths for debugging
-    println!("Project root: {}", project_root.display());
-    println!("Current directory: {}", current_dir.display());
-    println!("Relative clean directory: {}", clean_dir_relative);
-    println!();
+    // Print the calculated paths to stderr for debugging
+    eprintln!("Project root: {}", project_root.display());
+    eprintln!("Current directory: {}", current_dir.display());
+    eprintln!("Relative clean directory: {}", clean_dir_relative);
+    eprintln!();
 
     // Execute the clean command in the current directory
     executor::execute_command(&current_dir, &args.clean_cmd)?;
