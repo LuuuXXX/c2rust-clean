@@ -89,8 +89,14 @@ fn main() {
     let cli = match Cli::try_parse_from(c2rust_args) {
         Ok(cli) => cli,
         Err(e) => {
-            eprintln!("{}", e);
-            std::process::exit(1);
+            // Check if this is a help or version request (exit code 0)
+            if e.exit_code() == 0 {
+                print!("{}", e);
+                std::process::exit(0);
+            } else {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
         }
     };
 
