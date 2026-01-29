@@ -425,15 +425,18 @@ fn test_c2rust_project_root_overrides_search() {
 }
 
 #[test]
-fn test_c2rust_project_root_invalid_path_fallback() {
-    // Test that when C2RUST_PROJECT_ROOT is set to an invalid path,
-    // a warning is printed and the tool falls back to .c2rust directory search
+fn test_c2rust_project_root_used_directly() {
+    // Test that when C2RUST_PROJECT_ROOT is set, it is used directly
+    // without validation (trusting upstream tools that set it)
     let temp_dir = TempDir::new().unwrap();
     let mock_config = create_mock_c2rust_config(&temp_dir);
     
-    // Create .c2rust in temp_dir
+    // Create .c2rust in temp_dir (won't be used)
     let c2rust_dir = temp_dir.path().join(".c2rust");
     fs::create_dir(&c2rust_dir).unwrap();
+    
+    // Create another directory to use as the project root via env var
+    let project_root_dir = TempDir::new().unwrap();
     
     // Create a subdirectory for running the command
     let sub_dir = temp_dir.path().join("subdir");
@@ -441,10 +444,10 @@ fn test_c2rust_project_root_invalid_path_fallback() {
 
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
-    // Set C2RUST_PROJECT_ROOT to a non-existent path
-    let invalid_path = "/nonexistent/invalid/path";
+    // Set C2RUST_PROJECT_ROOT to project_root_dir
+    // This should be used directly, even though .c2rust exists in temp_dir
     cmd.env("C2RUST_CONFIG", &mock_config)
-        .env("C2RUST_PROJECT_ROOT", invalid_path)
+        .env("C2RUST_PROJECT_ROOT", project_root_dir.path())
         .current_dir(&sub_dir)
         .arg("clean")
         .arg("--")
@@ -453,11 +456,6 @@ fn test_c2rust_project_root_invalid_path_fallback() {
 
     cmd.assert()
         .success()
-        // Should print warning about invalid C2RUST_PROJECT_ROOT
-        .stderr(predicate::str::contains("Warning: C2RUST_PROJECT_ROOT is set to"))
-        .stderr(predicate::str::contains(invalid_path))
-        .stderr(predicate::str::contains("but it doesn't exist or is not a directory"))
-        .stderr(predicate::str::contains("Falling back to .c2rust directory search"))
-        // Should fall back to temp_dir (where .c2rust exists)
-        .stderr(predicate::str::contains(format!("Project root: {}", temp_dir.path().display())));
+        // Should use the C2RUST_PROJECT_ROOT value directly
+        .stderr(predicate::str::contains(format!("Project root: {}", project_root_dir.path().display())));
 }

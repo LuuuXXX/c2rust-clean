@@ -38,18 +38,13 @@ struct CommandArgs {
 /// If not set, searches for .c2rust directory upward from start_dir.
 /// If not found, returns the start_dir as root.
 fn find_project_root(start_dir: &Path) -> Result<PathBuf> {
-    // First, check if C2RUST_PROJECT_ROOT environment variable is set
+    // Check if C2RUST_PROJECT_ROOT environment variable is set
+    // If set, it IS the project root (set by upstream tools), so use it directly
     if let Ok(project_root) = std::env::var("C2RUST_PROJECT_ROOT") {
-        let root_path = PathBuf::from(&project_root);
-        if root_path.exists() && root_path.is_dir() {
-            return Ok(root_path);
-        } else {
-            eprintln!("Warning: C2RUST_PROJECT_ROOT is set to '{}' but it doesn't exist or is not a directory.", project_root);
-            eprintln!("Falling back to .c2rust directory search.");
-        }
+        return Ok(PathBuf::from(project_root));
     }
     
-    // Fallback to searching for .c2rust directory
+    // If not set, search for .c2rust directory
     let mut current = start_dir;
     loop {
         let c2rust_dir = current.join(".c2rust");
