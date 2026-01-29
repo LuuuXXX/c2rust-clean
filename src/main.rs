@@ -1,6 +1,7 @@
 mod config_helper;
 mod error;
 mod executor;
+mod git_helper;
 
 use clap::{Args, Parser, Subcommand};
 use error::Result;
@@ -32,9 +33,18 @@ struct CommandArgs {
     clean_cmd: Vec<String>,
 }
 
-/// Find the project root directory by searching for .c2rust directory
-/// or return the current directory as the root.
+/// Find the project root directory by checking the C2RUST_PROJECT_ROOT environment
+/// variable first, then searching for .c2rust directory, or return the current directory as the root.
 fn find_project_root(start_dir: &Path) -> Result<PathBuf> {
+    // First, check if C2RUST_PROJECT_ROOT environment variable is set
+    if let Ok(env_root) = std::env::var("C2RUST_PROJECT_ROOT") {
+        let root_path = PathBuf::from(env_root);
+        if root_path.exists() && root_path.is_dir() {
+            return Ok(root_path);
+        }
+    }
+
+    // Fall back to searching for .c2rust directory
     let mut current = start_dir;
     loop {
         let c2rust_dir = current.join(".c2rust");
@@ -88,6 +98,9 @@ fn run(args: CommandArgs) -> Result<()> {
     // Save configuration using c2rust-config
     let command_str = args.clean_cmd.join(" ");
     config_helper::save_config(&clean_dir_relative, &command_str, Some(feature), &project_root)?;
+
+    // Auto-commit changes in .c2rust directory
+    git_helper::auto_commit_c2rust_changes(&project_root)?;
 
     println!("\n✓ Clean command executed successfully.");
     println!("✓ Configuration saved.");

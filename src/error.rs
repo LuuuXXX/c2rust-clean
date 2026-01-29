@@ -5,6 +5,7 @@ pub enum Error {
     ConfigToolNotFound,
     ConfigSaveFailed(String),
     CommandExecutionFailed(String),
+    GitOperationFailed(String),
     IoError(std::io::Error),
 }
 
@@ -19,6 +20,9 @@ impl fmt::Display for Error {
             }
             Error::CommandExecutionFailed(msg) => {
                 write!(f, "Command execution failed: {}", msg)
+            }
+            Error::GitOperationFailed(msg) => {
+                write!(f, "Git operation failed: {}", msg)
             }
             Error::IoError(err) => {
                 write!(f, "IO error: {}", err)

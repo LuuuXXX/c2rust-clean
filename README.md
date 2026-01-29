@@ -83,7 +83,10 @@ c2rust-clean clean -- find . -name "*.o" -delete
 ## 工作原理
 
 1. **目录检测**: 自动获取当前工作目录
-2. **项目根目录查找**: 从当前目录向上查找包含 `.c2rust` 目录的位置作为项目根目录。如果未找到，则使用当前目录作为项目根目录
+2. **项目根目录查找**: 
+   - 首先检查 `C2RUST_PROJECT_ROOT` 环境变量（如果已设置）
+   - 如果未设置环境变量，则从当前目录向上查找包含 `.c2rust` 目录的位置作为项目根目录
+   - 如果未找到，则使用当前目录作为项目根目录
 3. **相对路径计算**: 计算当前目录相对于项目根目录的路径
 4. **命令执行**: 在当前目录中运行指定的清理命令，并实时显示输出：
    - 项目根目录路径
@@ -93,6 +96,7 @@ c2rust-clean clean -- find . -name "*.o" -delete
    - 命令的标准输出 (stdout) - 实时显示
    - 命令的标准错误 (stderr) - 实时显示
    - 命令的退出状态
+5. **自动 Git 提交**: 检测 `.c2rust` 目录下的修改并自动提交到 `.c2rust/.git` 仓库
 
 ## 输出示例
 
@@ -153,6 +157,37 @@ c2rust-clean clean -- make clean
 - **命令执行失败**: 清理命令返回了非零退出代码
 - **目录访问失败**: 无法获取当前工作目录
 
+## 环境变量
+
+### C2RUST_PROJECT_ROOT
+
+指定项目根目录的绝对路径。此环境变量通常由前置工具（如 c2rust-config）生成。
+
+**用途**:
+- 当设置此环境变量时，工具会直接使用该路径作为项目根目录
+- 如果未设置，工具会自动向上查找包含 `.c2rust` 目录的位置
+
+**示例**:
+```bash
+export C2RUST_PROJECT_ROOT=/path/to/project
+c2rust-clean clean -- make clean
+```
+
+## Git 自动提交
+
+工具会在执行清理命令后自动检测 `.c2rust` 目录下的修改并提交：
+
+**工作原理**:
+1. 检测 `.c2rust` 目录是否存在且包含 Git 仓库
+2. 检查是否有新增、修改或删除的文件
+3. 如果有修改，自动执行 `git add` 和 `git commit`
+4. 提交信息为："Auto-commit: Save c2rust clean configuration changes"
+
+**注意**:
+- 只有当 `.c2rust` 是一个 Git 仓库时，自动提交才会生效
+- 如果 `.c2rust` 目录不存在或不是 Git 仓库，此功能会被静默跳过
+- 提交会保存到 `<C2RUST_PROJECT_ROOT>/.c2rust/.git` 目录
+
 ## 开发
 
 ### 构建
@@ -177,9 +212,11 @@ cargo test --test integration_test
 
 ```
 src/
-├── main.rs       # CLI 入口点和参数解析
-├── error.rs      # 错误类型定义
-└── executor.rs   # 命令执行逻辑
+├── main.rs          # CLI 入口点和参数解析
+├── error.rs         # 错误类型定义
+├── executor.rs      # 命令执行逻辑
+├── config_helper.rs # c2rust-config 配置工具集成
+└── git_helper.rs    # Git 自动提交功能
 
 tests/
 └── integration_test.rs  # 集成测试
