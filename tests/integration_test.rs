@@ -139,6 +139,7 @@ fn test_project_root_fallback() {
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
     cmd.env("C2RUST_CONFIG", &mock_config)
+        .env_remove("C2RUST_PROJECT_ROOT")  // Ensure env var is not set to test fallback logic
         .current_dir(temp_dir.path())
         .arg("clean")
         .arg("--")
@@ -190,6 +191,7 @@ fn test_project_root_detection() {
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
     cmd.env("C2RUST_CONFIG", &mock_config)
+        .env_remove("C2RUST_PROJECT_ROOT")  // Ensure env var is not set to test .c2rust search logic
         .current_dir(&sub_dir)
         .arg("clean")
         .arg("--")

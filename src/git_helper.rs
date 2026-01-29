@@ -1,4 +1,4 @@
-use crate::error::{Error, Result};
+use crate::error::Result;
 use std::path::Path;
 
 /// Check if there are any modifications in the .c2rust directory and auto-commit if needed.
@@ -6,14 +6,16 @@ use std::path::Path;
 /// This function checks the git repository located at <project_root>/.c2rust/.git
 /// for any changes in the .c2rust directory and commits them if changes exist.
 /// 
+/// This is a best-effort operation - any errors are logged but do not fail the overall
+/// workflow, since auto-commit is a final-stage convenience feature.
+/// 
 /// # Arguments
 /// 
 /// * `project_root` - The absolute path to the project root directory
 /// 
 /// # Returns
 /// 
-/// Returns `Ok(())` if the check and potential commit succeed, or an error if
-/// the git operations fail.
+/// Always returns `Ok(())`. Errors are logged to stderr but not propagated.
 pub fn auto_commit_if_modified(project_root: &Path) -> Result<()> {
     let c2rust_dir = project_root.join(".c2rust");
     let git_dir = c2rust_dir.join(".git");
@@ -24,33 +26,39 @@ pub fn auto_commit_if_modified(project_root: &Path) -> Result<()> {
         return Ok(());
     }
     
+    // All git operations are best-effort - log errors but don't fail
+    if let Err(e) = try_auto_commit(&c2rust_dir) {
+        eprintln!("Warning: Auto-commit failed: {}", e);
+        eprintln!("Continuing without auto-commit.");
+    }
+    
+    Ok(())
+}
+
+/// Internal helper that performs the actual git operations.
+/// Errors are returned to the caller for logging.
+fn try_auto_commit(c2rust_dir: &Path) -> std::result::Result<(), String> {
     // Open the repository
-    let repo = git2::Repository::open(&c2rust_dir).map_err(|e| {
-        Error::CommandExecutionFailed(format!("Failed to open git repository at {}: {}", c2rust_dir.display(), e))
-    })?;
+    let repo = git2::Repository::open(c2rust_dir)
+        .map_err(|e| format!("Failed to open git repository at {}: {}", c2rust_dir.display(), e))?;
     
     // Check if there are any modifications
-    let mut index = repo.index().map_err(|e| {
-        Error::CommandExecutionFailed(format!("Failed to get git index: {}", e))
-    })?;
+    let mut index = repo.index()
+        .map_err(|e| format!("Failed to get git index: {}", e))?;
     
     // Add all changes to the index
-    index.add_all(["."].iter(), git2::IndexAddOption::DEFAULT, None).map_err(|e| {
-        Error::CommandExecutionFailed(format!("Failed to add files to git index: {}", e))
-    })?;
+    index.add_all(["."].iter(), git2::IndexAddOption::DEFAULT, None)
+        .map_err(|e| format!("Failed to add files to git index: {}", e))?;
     
-    index.write().map_err(|e| {
-        Error::CommandExecutionFailed(format!("Failed to write git index: {}", e))
-    })?;
+    index.write()
+        .map_err(|e| format!("Failed to write git index: {}", e))?;
     
     // Get the tree for the index
-    let tree_id = index.write_tree().map_err(|e| {
-        Error::CommandExecutionFailed(format!("Failed to write tree: {}", e))
-    })?;
+    let tree_id = index.write_tree()
+        .map_err(|e| format!("Failed to write tree: {}", e))?;
     
-    let tree = repo.find_tree(tree_id).map_err(|e| {
-        Error::CommandExecutionFailed(format!("Failed to find tree: {}", e))
-    })?;
+    let tree = repo.find_tree(tree_id)
+        .map_err(|e| format!("Failed to find tree: {}", e))?;
     
     // Get HEAD commit
     let head = match repo.head() {
@@ -58,9 +66,8 @@ pub fn auto_commit_if_modified(project_root: &Path) -> Result<()> {
         Err(_) => {
             // No HEAD, this might be the first commit
             // Check if there are any changes to commit
-            let diff = repo.diff_tree_to_index(None, Some(&index), None).map_err(|e| {
-                Error::CommandExecutionFailed(format!("Failed to create diff: {}", e))
-            })?;
+            let diff = repo.diff_tree_to_index(None, Some(&index), None)
+                .map_err(|e| format!("Failed to create diff: {}", e))?;
             
             // If there are no changes, return early
             if diff.deltas().len() == 0 {
@@ -68,9 +75,8 @@ pub fn auto_commit_if_modified(project_root: &Path) -> Result<()> {
             }
             
             // Create an initial commit
-            let sig = repo.signature().map_err(|e| {
-                Error::CommandExecutionFailed(format!("Failed to get git signature: {}", e))
-            })?;
+            let sig = repo.signature()
+                .map_err(|e| format!("Failed to get git signature: {}", e))?;
             
             repo.commit(
                 Some("HEAD"),
@@ -79,26 +85,21 @@ pub fn auto_commit_if_modified(project_root: &Path) -> Result<()> {
                 "Auto-commit: c2rust-clean changes",
                 &tree,
                 &[],
-            ).map_err(|e| {
-                Error::CommandExecutionFailed(format!("Failed to create initial commit: {}", e))
-            })?;
+            ).map_err(|e| format!("Failed to create initial commit: {}", e))?;
             
             return Ok(());
         }
     };
     
-    let parent_commit = head.peel_to_commit().map_err(|e| {
-        Error::CommandExecutionFailed(format!("Failed to get parent commit: {}", e))
-    })?;
+    let parent_commit = head.peel_to_commit()
+        .map_err(|e| format!("Failed to get parent commit: {}", e))?;
     
     // Check if there are any changes compared to the parent commit
-    let parent_tree = parent_commit.tree().map_err(|e| {
-        Error::CommandExecutionFailed(format!("Failed to get parent tree: {}", e))
-    })?;
+    let parent_tree = parent_commit.tree()
+        .map_err(|e| format!("Failed to get parent tree: {}", e))?;
     
-    let diff = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None).map_err(|e| {
-        Error::CommandExecutionFailed(format!("Failed to create diff: {}", e))
-    })?;
+    let diff = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None)
+        .map_err(|e| format!("Failed to create diff: {}", e))?;
     
     // If there are no changes, return early
     if diff.deltas().len() == 0 {
@@ -106,9 +107,8 @@ pub fn auto_commit_if_modified(project_root: &Path) -> Result<()> {
     }
     
     // Create the commit
-    let sig = repo.signature().map_err(|e| {
-        Error::CommandExecutionFailed(format!("Failed to get git signature: {}", e))
-    })?;
+    let sig = repo.signature()
+        .map_err(|e| format!("Failed to get git signature: {}", e))?;
     
     repo.commit(
         Some("HEAD"),
@@ -117,9 +117,7 @@ pub fn auto_commit_if_modified(project_root: &Path) -> Result<()> {
         "Auto-commit: c2rust-clean changes",
         &tree,
         &[&parent_commit],
-    ).map_err(|e| {
-        Error::CommandExecutionFailed(format!("Failed to create commit: {}", e))
-    })?;
+    ).map_err(|e| format!("Failed to create commit: {}", e))?;
     
     Ok(())
 }
