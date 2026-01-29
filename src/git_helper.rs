@@ -57,6 +57,16 @@ pub fn auto_commit_if_modified(project_root: &Path) -> Result<()> {
         Ok(head) => head,
         Err(_) => {
             // No HEAD, this might be the first commit
+            // Check if there are any changes to commit
+            let diff = repo.diff_tree_to_index(None, Some(&index), None).map_err(|e| {
+                Error::CommandExecutionFailed(format!("Failed to create diff: {}", e))
+            })?;
+            
+            // If there are no changes, return early
+            if diff.deltas().len() == 0 {
+                return Ok(());
+            }
+            
             // Create an initial commit
             let sig = repo.signature().map_err(|e| {
                 Error::CommandExecutionFailed(format!("Failed to get git signature: {}", e))
@@ -155,5 +165,16 @@ mod tests {
         let head = repo.head().unwrap();
         let commit = head.peel_to_commit().unwrap();
         assert!(commit.message().unwrap().contains("Auto-commit"));
+        
+        let first_commit_id = commit.id();
+        
+        // Run auto_commit_if_modified again without any changes
+        let result2 = auto_commit_if_modified(temp_dir.path());
+        assert!(result2.is_ok(), "Expected second auto_commit to succeed, got: {:?}", result2);
+        
+        // Verify no new commit was created
+        let head2 = repo.head().unwrap();
+        let commit2 = head2.peel_to_commit().unwrap();
+        assert_eq!(commit2.id(), first_commit_id, "Expected no new commit when there are no changes");
     }
 }
