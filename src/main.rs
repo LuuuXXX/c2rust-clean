@@ -1,10 +1,11 @@
 mod config_helper;
 mod error;
 mod executor;
+mod git_helper;
 
 use clap::{Args, Parser, Subcommand};
 use error::Result;
-use std::path::{Path, PathBuf};
+use log::info;
 
 #[derive(Parser)]
 #[command(name = "c2rust-clean")]
@@ -32,22 +33,6 @@ struct CommandArgs {
     clean_cmd: Vec<String>,
 }
 
-/// Find the project root directory by searching for .c2rust directory
-/// or return the current directory as the root.
-fn find_project_root(start_dir: &Path) -> Result<PathBuf> {
-    let mut current = start_dir;
-    loop {
-        let c2rust_dir = current.join(".c2rust");
-        if c2rust_dir.exists() && c2rust_dir.is_dir() {
-            return Ok(current.to_path_buf());
-        }
-        match current.parent() {
-            Some(parent) => current = parent,
-            None => return Ok(start_dir.to_path_buf()),
-        }
-    }
-}
-
 fn run(args: CommandArgs) -> Result<()> {
     // 1. Check if c2rust-config exists
     config_helper::check_c2rust_config_exists()?;
@@ -58,9 +43,8 @@ fn run(args: CommandArgs) -> Result<()> {
     // 3. Get the current working directory (where the command is executed)
     let current_dir = std::env::current_dir()?;
     
-    // 4. Find the project root (where .c2rust is located)
-    // Start from current directory and search upward for .c2rust or use current as root
-    let project_root = find_project_root(&current_dir)?;
+    // 4. Find the project root using git_helper (supports C2RUST_PROJECT_ROOT)
+    let project_root = git_helper::get_project_root(&current_dir)?;
     
     // 5. Calculate the clean directory relative to project root
     let clean_dir_relative = current_dir.strip_prefix(&project_root)
@@ -89,12 +73,19 @@ fn run(args: CommandArgs) -> Result<()> {
     let command_str = args.clean_cmd.join(" ");
     config_helper::save_config(&clean_dir_relative, &command_str, Some(feature), &project_root)?;
 
+    // Auto-commit changes to .c2rust if any
+    info!("Checking for .c2rust directory changes to auto-commit");
+    if let Err(e) = git_helper::auto_commit_c2rust_changes(&project_root) {
+        eprintln!("Warning: Failed to auto-commit .c2rust changes: {}", e);
+    }
+
     println!("\n✓ Clean command executed successfully.");
     println!("✓ Configuration saved.");
     Ok(())
 }
 
 fn main() {
+    env_logger::init();
     let cli = Cli::parse();
 
     let result = match cli.command {
