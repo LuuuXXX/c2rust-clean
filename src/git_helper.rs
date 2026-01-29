@@ -10,12 +10,12 @@ pub fn get_project_root(start_dir: &Path) -> Result<PathBuf> {
     // First, try to get from environment variable
     if let Ok(env_root) = std::env::var("C2RUST_PROJECT_ROOT") {
         let root_path = PathBuf::from(env_root);
-        if root_path.exists() {
+        if root_path.is_dir() {
             debug!("Using C2RUST_PROJECT_ROOT: {}", root_path.display());
             return Ok(root_path);
         } else {
             warn!(
-                "C2RUST_PROJECT_ROOT points to non-existent path: {}, falling back to search",
+                "C2RUST_PROJECT_ROOT points to a path that is not a directory: {}, falling back to search",
                 root_path.display()
             );
         }
@@ -48,6 +48,8 @@ pub fn check_c2rust_dir_exists(project_root: &Path) -> bool {
 }
 
 /// Check if there are uncommitted changes in the .c2rust directory
+// This function is currently only used in tests and is reserved for future features
+// that need to detect uncommitted changes in the `.c2rust` project metadata directory.
 #[allow(dead_code)]
 pub fn has_uncommitted_changes(project_root: &Path) -> Result<bool> {
     let c2rust_dir = project_root.join(".c2rust");
@@ -78,10 +80,10 @@ fn check_repo_has_uncommitted_changes(repo: &Repository) -> Result<bool> {
     opts.include_ignored(false);
     
     let statuses = repo.statuses(Some(&mut opts))
-        .map_err(|e| Error::IoError(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Failed to get git status: {}", e)
-        )))?;
+        .map_err(|e| {
+            let io_err = std::io::Error::new(std::io::ErrorKind::Other, e);
+            Error::IoError(io_err)
+        })?;
 
     let has_changes = !statuses.is_empty();
     debug!("Uncommitted changes in repository: {}", has_changes);
@@ -123,7 +125,7 @@ pub fn auto_commit_c2rust_changes(project_root: &Path) -> Result<()> {
             format!("Failed to get git index: {}", e)
         )))?;
     
-    index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
+    index.add_all(["."].iter(), git2::IndexAddOption::DEFAULT, None)
         .map_err(|e| Error::IoError(std::io::Error::new(
             std::io::ErrorKind::Other,
             format!("Failed to add files to git index: {}", e)
@@ -184,7 +186,10 @@ pub fn auto_commit_c2rust_changes(project_root: &Path) -> Result<()> {
     };
 
     // Create the commit
-    let parents: Vec<&git2::Commit> = parent_commit.iter().collect();
+    let parents: Vec<&git2::Commit> = match parent_commit.as_ref() {
+        Some(ref commit) => vec![commit],
+        None => Vec::new(),
+    };
     repo.commit(
         Some("HEAD"),
         &sig,

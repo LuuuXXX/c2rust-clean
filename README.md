@@ -29,7 +29,24 @@ export C2RUST_PROJECT_ROOT=/path/to/your/project
 C2RUST_PROJECT_ROOT=/path/to/your/project c2rust-clean clean -- make clean
 ```
 
-**注意**：如果未设置 `C2RUST_PROJECT_ROOT`，工具会自动从当前目录向上搜索包含 `.c2rust` 目录的位置作为项目根目录。如果找不到 `.c2rust` 目录，则使用当前目录作为项目根目录。
+**注意**：
+- 如果未设置 `C2RUST_PROJECT_ROOT`，工具会自动从当前目录向上搜索包含 `.c2rust` 目录的位置作为项目根目录。如果找不到 `.c2rust` 目录，则使用当前目录作为项目根目录。
+- `C2RUST_PROJECT_ROOT` 必须指向一个目录，而不是文件。如果指向文件或不存在的路径，工具会回退到自动搜索。
+
+### C2RUST_DISABLE_AUTO_COMMIT
+
+该环境变量用于禁用 `.c2rust` 目录的自动 Git 提交功能。如果您希望手动管理 `.c2rust` 的版本控制，可以设置此变量。
+
+**设置方法：**
+
+```bash
+# 禁用自动提交
+export C2RUST_DISABLE_AUTO_COMMIT=1
+c2rust-clean clean -- make clean
+
+# 或在命令行中直接使用
+C2RUST_DISABLE_AUTO_COMMIT=1 c2rust-clean clean -- make clean
+```
 
 ## 安装
 
