@@ -362,3 +362,64 @@ fn test_default_feature_when_not_specified() {
     assert!(log_content.contains("--feature"), "Expected --feature in log");
     assert!(log_content.contains("default"), "Expected default in log");
 }
+
+#[test]
+fn test_c2rust_project_root_env_var() {
+    // Test that C2RUST_PROJECT_ROOT environment variable is used when set
+    let temp_dir = TempDir::new().unwrap();
+    let mock_config = create_mock_c2rust_config(&temp_dir);
+    
+    // Create a subdirectory for running the command
+    let sub_dir = temp_dir.path().join("subdir");
+    fs::create_dir(&sub_dir).unwrap();
+
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    // Set C2RUST_PROJECT_ROOT to the temp_dir
+    cmd.env("C2RUST_CONFIG", &mock_config)
+        .env("C2RUST_PROJECT_ROOT", temp_dir.path())
+        .current_dir(&sub_dir)
+        .arg("clean")
+        .arg("--")
+        .arg("echo")
+        .arg("test");
+
+    cmd.assert()
+        .success()
+        .stderr(predicate::str::contains(format!("Project root: {}", temp_dir.path().display())))
+        .stderr(predicate::str::contains("Relative clean directory: subdir"));
+}
+
+#[test]
+fn test_c2rust_project_root_overrides_search() {
+    // Test that C2RUST_PROJECT_ROOT takes precedence over .c2rust directory search
+    let temp_dir = TempDir::new().unwrap();
+    let mock_config = create_mock_c2rust_config(&temp_dir);
+    
+    // Create .c2rust in temp_dir
+    let c2rust_dir = temp_dir.path().join(".c2rust");
+    fs::create_dir(&c2rust_dir).unwrap();
+    
+    // Create another directory to use as override
+    let override_dir = TempDir::new().unwrap();
+    
+    // Create a subdirectory in temp_dir for running the command
+    let sub_dir = temp_dir.path().join("subdir");
+    fs::create_dir(&sub_dir).unwrap();
+
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    // Set C2RUST_PROJECT_ROOT to override_dir (different from .c2rust location)
+    cmd.env("C2RUST_CONFIG", &mock_config)
+        .env("C2RUST_PROJECT_ROOT", override_dir.path())
+        .current_dir(&sub_dir)
+        .arg("clean")
+        .arg("--")
+        .arg("echo")
+        .arg("test");
+
+    cmd.assert()
+        .success()
+        // Should use override_dir, not temp_dir where .c2rust exists
+        .stderr(predicate::str::contains(format!("Project root: {}", override_dir.path().display())));
+}
