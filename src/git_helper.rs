@@ -48,6 +48,7 @@ pub fn check_c2rust_dir_exists(project_root: &Path) -> bool {
 }
 
 /// Check if there are uncommitted changes in the .c2rust directory
+#[allow(dead_code)]
 pub fn has_uncommitted_changes(project_root: &Path) -> Result<bool> {
     let c2rust_dir = project_root.join(".c2rust");
     
@@ -66,6 +67,11 @@ pub fn has_uncommitted_changes(project_root: &Path) -> Result<bool> {
         }
     };
 
+    check_repo_has_uncommitted_changes(&repo)
+}
+
+/// Check if a Git repository has uncommitted changes
+fn check_repo_has_uncommitted_changes(repo: &Repository) -> Result<bool> {
     // Check for uncommitted changes
     let mut opts = StatusOptions::new();
     opts.include_untracked(true);
@@ -78,7 +84,7 @@ pub fn has_uncommitted_changes(project_root: &Path) -> Result<bool> {
         )))?;
 
     let has_changes = !statuses.is_empty();
-    debug!("Uncommitted changes in .c2rust: {}", has_changes);
+    debug!("Uncommitted changes in repository: {}", has_changes);
     
     Ok(has_changes)
 }
@@ -102,8 +108,8 @@ pub fn auto_commit_c2rust_changes(project_root: &Path) -> Result<()> {
         }
     };
 
-    // Check if there are changes to commit
-    if !has_uncommitted_changes(project_root)? {
+    // Check if there are changes to commit (using already-opened repo)
+    if !check_repo_has_uncommitted_changes(&repo)? {
         debug!("No uncommitted changes in .c2rust, skipping auto-commit");
         return Ok(());
     }
