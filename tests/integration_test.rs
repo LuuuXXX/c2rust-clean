@@ -139,6 +139,7 @@ fn test_project_root_fallback() {
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
     cmd.env("C2RUST_CONFIG", &mock_config)
+        .env_remove("C2RUST_PROJECT_ROOT")  // Ensure env var is not set to test fallback logic
         .current_dir(temp_dir.path())
         .arg("clean")
         .arg("--")
@@ -190,6 +191,7 @@ fn test_project_root_detection() {
     let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
     
     cmd.env("C2RUST_CONFIG", &mock_config)
+        .env_remove("C2RUST_PROJECT_ROOT")  // Ensure env var is not set to test .c2rust search logic
         .current_dir(&sub_dir)
         .arg("clean")
         .arg("--")
@@ -361,4 +363,134 @@ fn test_default_feature_when_not_specified() {
     let log_content = fs::read_to_string(&log_file).unwrap();
     assert!(log_content.contains("--feature"), "Expected --feature in log");
     assert!(log_content.contains("default"), "Expected default in log");
+}
+
+#[test]
+fn test_c2rust_project_root_env_var() {
+    // Test that C2RUST_PROJECT_ROOT environment variable is used when set
+    let temp_dir = TempDir::new().unwrap();
+    let mock_config = create_mock_c2rust_config(&temp_dir);
+    
+    // Create a subdirectory for running the command
+    let sub_dir = temp_dir.path().join("subdir");
+    fs::create_dir(&sub_dir).unwrap();
+
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    // Set C2RUST_PROJECT_ROOT to the temp_dir
+    cmd.env("C2RUST_CONFIG", &mock_config)
+        .env("C2RUST_PROJECT_ROOT", temp_dir.path())
+        .current_dir(&sub_dir)
+        .arg("clean")
+        .arg("--")
+        .arg("echo")
+        .arg("test");
+
+    cmd.assert()
+        .success()
+        .stderr(predicate::str::contains(format!("Project root: {}", temp_dir.path().display())))
+        .stderr(predicate::str::contains("Relative clean directory: subdir"));
+}
+
+#[test]
+fn test_c2rust_project_root_overrides_search() {
+    // Test that C2RUST_PROJECT_ROOT takes precedence over .c2rust directory search
+    let temp_dir = TempDir::new().unwrap();
+    let mock_config = create_mock_c2rust_config(&temp_dir);
+    
+    // Create .c2rust in temp_dir
+    let c2rust_dir = temp_dir.path().join(".c2rust");
+    fs::create_dir(&c2rust_dir).unwrap();
+    
+    // Create another directory to use as override
+    let override_dir = TempDir::new().unwrap();
+    
+    // Create a subdirectory in temp_dir for running the command
+    let sub_dir = temp_dir.path().join("subdir");
+    fs::create_dir(&sub_dir).unwrap();
+
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    // Set C2RUST_PROJECT_ROOT to override_dir (different from .c2rust location)
+    cmd.env("C2RUST_CONFIG", &mock_config)
+        .env("C2RUST_PROJECT_ROOT", override_dir.path())
+        .current_dir(&sub_dir)
+        .arg("clean")
+        .arg("--")
+        .arg("echo")
+        .arg("test");
+
+    cmd.assert()
+        .success()
+        // Should use override_dir, not temp_dir where .c2rust exists
+        .stderr(predicate::str::contains(format!("Project root: {}", override_dir.path().display())));
+}
+
+#[test]
+fn test_c2rust_project_root_used_directly() {
+    // Test that when C2RUST_PROJECT_ROOT is set, it is used directly
+    // without validation (trusting upstream tools that set it)
+    let temp_dir = TempDir::new().unwrap();
+    let mock_config = create_mock_c2rust_config(&temp_dir);
+    
+    // Create .c2rust in temp_dir (won't be used)
+    let c2rust_dir = temp_dir.path().join(".c2rust");
+    fs::create_dir(&c2rust_dir).unwrap();
+    
+    // Create another directory to use as the project root via env var
+    let project_root_dir = TempDir::new().unwrap();
+    
+    // Create a subdirectory for running the command
+    let sub_dir = temp_dir.path().join("subdir");
+    fs::create_dir(&sub_dir).unwrap();
+
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    // Set C2RUST_PROJECT_ROOT to project_root_dir
+    // This should be used directly, even though .c2rust exists in temp_dir
+    cmd.env("C2RUST_CONFIG", &mock_config)
+        .env("C2RUST_PROJECT_ROOT", project_root_dir.path())
+        .current_dir(&sub_dir)
+        .arg("clean")
+        .arg("--")
+        .arg("echo")
+        .arg("test");
+
+    cmd.assert()
+        .success()
+        // Should use the C2RUST_PROJECT_ROOT value directly
+        .stderr(predicate::str::contains(format!("Project root: {}", project_root_dir.path().display())));
+}
+
+#[test]
+fn test_git_auto_commit_failure_is_non_fatal() {
+    // Test that when git auto-commit fails, the CLI still succeeds with a warning
+    let temp_dir = TempDir::new().unwrap();
+    let mock_config = create_mock_c2rust_config(&temp_dir);
+    
+    // Create .c2rust directory with git repo but no config (will fail to commit)
+    let c2rust_dir = temp_dir.path().join(".c2rust");
+    fs::create_dir(&c2rust_dir).unwrap();
+    
+    // Initialize git repo without user config - this will cause commit to fail
+    git2::Repository::init(&c2rust_dir).unwrap();
+    
+    // Create a file to trigger commit attempt
+    fs::write(c2rust_dir.join("test.txt"), "content").unwrap();
+
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    cmd.env("C2RUST_CONFIG", &mock_config)
+        .env("C2RUST_PROJECT_ROOT", temp_dir.path())
+        .current_dir(temp_dir.path())
+        .arg("clean")
+        .arg("--")
+        .arg("echo")
+        .arg("test");
+
+    cmd.assert()
+        .success()  // Should still succeed even though git commit fails
+        .stderr(predicate::str::contains("Warning: Auto-commit failed:"))
+        .stderr(predicate::str::contains("Continuing without auto-commit."))
+        .stdout(predicate::str::contains("✓ Clean command executed successfully."));
 }
