@@ -74,7 +74,11 @@ fn run(args: CommandArgs) -> Result<()> {
     config_helper::save_config(&clean_dir_relative, &command_str, Some(feature), &project_root)?;
 
     // Auto-commit changes to .c2rust if any (unless disabled)
-    if std::env::var("C2RUST_DISABLE_AUTO_COMMIT").is_err() {
+    let auto_commit_disabled = std::env::var("C2RUST_DISABLE_AUTO_COMMIT")
+        .map(|v| !v.is_empty() && v != "0" && v != "false")
+        .unwrap_or(false);
+    
+    if !auto_commit_disabled {
         info!("Checking for .c2rust directory changes to auto-commit");
         if let Err(e) = git_helper::auto_commit_c2rust_changes(&project_root) {
             eprintln!("Warning: Failed to auto-commit .c2rust changes: {}", e);

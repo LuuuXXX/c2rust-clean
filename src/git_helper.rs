@@ -120,22 +120,22 @@ pub fn auto_commit_c2rust_changes(project_root: &Path) -> Result<()> {
 
     // Add all changes
     let mut index = repo.index()
-        .map_err(|e| Error::IoError(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Failed to get git index: {}", e)
-        )))?;
+        .map_err(|e| {
+            let io_err = std::io::Error::new(std::io::ErrorKind::Other, e);
+            Error::IoError(io_err)
+        })?;
     
     index.add_all(["."].iter(), git2::IndexAddOption::DEFAULT, None)
-        .map_err(|e| Error::IoError(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Failed to add files to git index: {}", e)
-        )))?;
+        .map_err(|e| {
+            let io_err = std::io::Error::new(std::io::ErrorKind::Other, e);
+            Error::IoError(io_err)
+        })?;
     
     index.write()
-        .map_err(|e| Error::IoError(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Failed to write git index: {}", e)
-        )))?;
+        .map_err(|e| {
+            let io_err = std::io::Error::new(std::io::ErrorKind::Other, e);
+            Error::IoError(io_err)
+        })?;
 
     // Create commit message with timestamp
     let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
@@ -143,16 +143,16 @@ pub fn auto_commit_c2rust_changes(project_root: &Path) -> Result<()> {
 
     // Get the tree
     let tree_id = index.write_tree()
-        .map_err(|e| Error::IoError(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Failed to write tree: {}", e)
-        )))?;
+        .map_err(|e| {
+            let io_err = std::io::Error::new(std::io::ErrorKind::Other, e);
+            Error::IoError(io_err)
+        })?;
     
     let tree = repo.find_tree(tree_id)
-        .map_err(|e| Error::IoError(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Failed to find tree: {}", e)
-        )))?;
+        .map_err(|e| {
+            let io_err = std::io::Error::new(std::io::ErrorKind::Other, e);
+            Error::IoError(io_err)
+        })?;
 
     // Get signature
     let sig = match repo.signature() {
@@ -160,10 +160,10 @@ pub fn auto_commit_c2rust_changes(project_root: &Path) -> Result<()> {
         Err(_) => {
             // Fallback to default signature
             git2::Signature::now("c2rust-clean", "c2rust-clean@auto")
-                .map_err(|e| Error::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Failed to create git signature: {}", e)
-                )))?
+                .map_err(|e| {
+                    let io_err = std::io::Error::new(std::io::ErrorKind::Other, e);
+                    Error::IoError(io_err)
+                })?
         }
     };
 
@@ -177,10 +177,10 @@ pub fn auto_commit_c2rust_changes(project_root: &Path) -> Result<()> {
                 ))
             })?;
             Some(repo.find_commit(oid)
-                .map_err(|e| Error::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Failed to find HEAD commit: {}", e)
-                )))?)
+                .map_err(|e| {
+                    let io_err = std::io::Error::new(std::io::ErrorKind::Other, e);
+                    Error::IoError(io_err)
+                })?)
         }
         Err(_) => None,
     };
@@ -197,10 +197,10 @@ pub fn auto_commit_c2rust_changes(project_root: &Path) -> Result<()> {
         &commit_message,
         &tree,
         &parents
-    ).map_err(|e| Error::IoError(std::io::Error::new(
-        std::io::ErrorKind::Other,
-        format!("Failed to create commit: {}", e)
-    )))?;
+    ).map_err(|e| {
+        let io_err = std::io::Error::new(std::io::ErrorKind::Other, e);
+        Error::IoError(io_err)
+    })?;
 
     info!("Successfully committed changes to .c2rust with message: {}", commit_message);
     Ok(())
