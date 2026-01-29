@@ -461,3 +461,36 @@ fn test_c2rust_project_root_used_directly() {
         // Should use the C2RUST_PROJECT_ROOT value directly
         .stderr(predicate::str::contains(format!("Project root: {}", project_root_dir.path().display())));
 }
+
+#[test]
+fn test_git_auto_commit_failure_is_non_fatal() {
+    // Test that when git auto-commit fails, the CLI still succeeds with a warning
+    let temp_dir = TempDir::new().unwrap();
+    let mock_config = create_mock_c2rust_config(&temp_dir);
+    
+    // Create .c2rust directory with git repo but no config (will fail to commit)
+    let c2rust_dir = temp_dir.path().join(".c2rust");
+    fs::create_dir(&c2rust_dir).unwrap();
+    
+    // Initialize git repo without user config - this will cause commit to fail
+    git2::Repository::init(&c2rust_dir).unwrap();
+    
+    // Create a file to trigger commit attempt
+    fs::write(c2rust_dir.join("test.txt"), "content").unwrap();
+
+    let mut cmd = Command::cargo_bin("c2rust-clean").unwrap();
+    
+    cmd.env("C2RUST_CONFIG", &mock_config)
+        .env("C2RUST_PROJECT_ROOT", temp_dir.path())
+        .current_dir(temp_dir.path())
+        .arg("clean")
+        .arg("--")
+        .arg("echo")
+        .arg("test");
+
+    cmd.assert()
+        .success()  // Should still succeed even though git commit fails
+        .stderr(predicate::str::contains("Warning: Auto-commit failed:"))
+        .stderr(predicate::str::contains("Continuing without auto-commit."))
+        .stdout(predicate::str::contains("✓ Clean command executed successfully."));
+}

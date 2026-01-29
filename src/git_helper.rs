@@ -175,4 +175,30 @@ mod tests {
         let commit2 = head2.peel_to_commit().unwrap();
         assert_eq!(commit2.id(), first_commit_id, "Expected no new commit when there are no changes");
     }
+    
+    #[test]
+    fn test_auto_commit_git_error_is_non_fatal() {
+        // Test that git errors don't fail the overall operation
+        // This ensures the best-effort behavior is maintained
+        let temp_dir = TempDir::new().unwrap();
+        let c2rust_dir = temp_dir.path().join(".c2rust");
+        fs::create_dir(&c2rust_dir).unwrap();
+        
+        // Initialize a git repository WITHOUT setting user.name/user.email
+        // This will cause git operations to fail when trying to commit
+        let _repo = git2::Repository::init(&c2rust_dir).unwrap();
+        
+        // Create a test file to trigger commit attempt
+        let test_file = c2rust_dir.join("test.txt");
+        fs::write(&test_file, "test content").unwrap();
+        
+        // Run auto_commit_if_modified - it should succeed despite git config errors
+        let result = auto_commit_if_modified(temp_dir.path());
+        
+        // The function should return Ok(()) even though git operations failed
+        assert!(result.is_ok(), "Expected auto_commit to succeed (non-fatal) even with git errors, got: {:?}", result);
+        
+        // Note: The warning message would be printed to stderr but we can't easily capture it in unit tests
+        // Integration tests can verify the warning output
+    }
 }
