@@ -40,13 +40,22 @@ C2RUST_PROJECT_ROOT=/path/to/your/project c2rust-clean clean -- make clean
 **设置方法：**
 
 ```bash
-# 禁用自动提交
+# 禁用自动提交（任何非空值，除了 "0" 和 "false"）
 export C2RUST_DISABLE_AUTO_COMMIT=1
 c2rust-clean clean -- make clean
 
 # 或在命令行中直接使用
 C2RUST_DISABLE_AUTO_COMMIT=1 c2rust-clean clean -- make clean
+
+# 以下值会启用自动提交（保持默认行为）：
+C2RUST_DISABLE_AUTO_COMMIT=0 c2rust-clean clean -- make clean
+C2RUST_DISABLE_AUTO_COMMIT=false c2rust-clean clean -- make clean
 ```
+
+**注意**：
+- 任何非空值（除了 "0" 和 "false"）都会禁用自动提交
+- 设置为 "0" 或 "false" 会保持自动提交启用
+- 未设置该变量时，自动提交默认启用
 
 ## 安装
 

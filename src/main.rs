@@ -75,7 +75,10 @@ fn run(args: CommandArgs) -> Result<()> {
 
     // Auto-commit changes to .c2rust if any (unless disabled)
     let auto_commit_disabled = std::env::var("C2RUST_DISABLE_AUTO_COMMIT")
-        .map(|v| !v.is_empty() && v != "0" && v != "false")
+        .map(|v| {
+            let v_lower = v.to_lowercase();
+            !v.is_empty() && v_lower != "0" && v_lower != "false"
+        })
         .unwrap_or(false);
     
     if !auto_commit_disabled {
