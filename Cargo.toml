@@ -9,6 +9,8 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
+git2 = "0.18"
+chrono = "0.4"
 
 [dev-dependencies]
 assert_cmd = "2"

@@ -1,6 +1,7 @@
 mod config_helper;
 mod error;
 mod executor;
+mod git_helper;
 
 use clap::{Args, Parser, Subcommand};
 use error::Result;
@@ -88,6 +89,11 @@ fn run(args: CommandArgs) -> Result<()> {
     // Save configuration using c2rust-config
     let command_str = args.clean_cmd.join(" ");
     config_helper::save_config(&clean_dir_relative, &command_str, Some(feature), &project_root)?;
+
+    // Check and commit changes in .c2rust directory if C2RUST_PROJECT_ROOT is set
+    if std::env::var("C2RUST_PROJECT_ROOT").is_ok() {
+        git_helper::check_and_commit()?;
+    }
 
     println!("\n✓ Clean command executed successfully.");
     println!("✓ Configuration saved.");
