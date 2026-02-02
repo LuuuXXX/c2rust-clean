@@ -72,8 +72,8 @@ fn run(args: CommandArgs) -> Result<()> {
     // 3. Get the current working directory (where the command is executed)
     let current_dir = std::env::current_dir()?;
     
-    // 4. Find the project root (where .c2rust is located)
-    // Start from current directory and search upward for .c2rust or use current as root
+    // 4. Find the project root by searching for marker files
+    // Start from current directory and search upward for .git, Cargo.toml, or .c2rust
     let project_root = find_project_root(&current_dir)?;
     
     // 5. Calculate the clean directory relative to project root
