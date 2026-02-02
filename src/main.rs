@@ -33,24 +33,28 @@ struct CommandArgs {
     clean_cmd: Vec<String>,
 }
 
-/// Find the project root directory.
-/// First checks C2RUST_PROJECT_ROOT environment variable.
-/// If not set, searches for .c2rust directory upward from start_dir.
-/// If not found, returns the start_dir as root.
+/// Find the project root directory by searching for marker files/directories.
+/// Searches upward from start_dir for directories containing:
+/// - .git directory (Git repository root)
+/// - Cargo.toml (Rust project root)
+/// - .c2rust directory (c2rust project marker)
+/// If none found, returns the start_dir as root.
 fn find_project_root(start_dir: &Path) -> Result<PathBuf> {
-    // Check if C2RUST_PROJECT_ROOT environment variable is set
-    // If set, it IS the project root (set by upstream tools), so use it directly
-    if let Ok(project_root) = std::env::var("C2RUST_PROJECT_ROOT") {
-        return Ok(PathBuf::from(project_root));
-    }
-    
-    // If not set, search for .c2rust directory
     let mut current = start_dir;
+    
+    // List of marker files/directories that indicate a project root
+    let markers = [".git", "Cargo.toml", ".c2rust"];
+    
     loop {
-        let c2rust_dir = current.join(".c2rust");
-        if c2rust_dir.exists() && c2rust_dir.is_dir() {
-            return Ok(current.to_path_buf());
+        // Check if any marker exists in the current directory
+        for marker in &markers {
+            let marker_path = current.join(marker);
+            if marker_path.exists() {
+                return Ok(current.to_path_buf());
+            }
         }
+        
+        // Move to parent directory
         match current.parent() {
             Some(parent) => current = parent,
             None => return Ok(start_dir.to_path_buf()),
@@ -68,8 +72,8 @@ fn run(args: CommandArgs) -> Result<()> {
     // 3. Get the current working directory (where the command is executed)
     let current_dir = std::env::current_dir()?;
     
-    // 4. Find the project root (where .c2rust is located)
-    // Start from current directory and search upward for .c2rust or use current as root
+    // 4. Find the project root by searching for marker files
+    // Start from current directory and search upward for .git, Cargo.toml, or .c2rust
     let project_root = find_project_root(&current_dir)?;
     
     // 5. Calculate the clean directory relative to project root
