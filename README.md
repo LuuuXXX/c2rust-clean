@@ -227,6 +227,26 @@ tests/
 └── integration_test.rs  # 集成测试
 ```
 
+## 发布 (Releases)
+
+### 如何发布新版本
+
+本项目使用 GitHub Actions 自动发布到 crates.io。要发布新版本：
+
+1. **更新版本号**: 在 `Cargo.toml` 中更新 `version` 字段
+2. **提交更改**: 提交版本号更改到主分支
+3. **创建并推送标签**: 
+   ```bash
+   git tag v<版本号>  # 例如: git tag v0.1.0
+   git push origin v<版本号>
+   ```
+4. **自动发布**: GitHub Actions 会自动：
+   - 构建项目
+   - 运行测试
+   - 发布到 crates.io
+
+**注意**: 确保 GitHub 仓库中已设置 `CARGO_REGISTRY_TOKEN` secret。
+
 ## 许可证
 
 详见 LICENSE 文件。
