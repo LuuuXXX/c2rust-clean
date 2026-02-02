@@ -2,6 +2,13 @@
 name = "c2rust-clean"
 version = "0.1.0"
 edition = "2021"
+description = "A command-line tool for cleaning C project build artifacts in c2rust workflow"
+license = "MIT"
+repository = "https://github.com/LuuuXXX/c2rust-clean"
+authors = ["LuuuXXX"]
+keywords = ["c2rust", "build", "clean", "c-projects"]
+categories = ["command-line-utilities", "development-tools"]
+readme = "README.md"
 
 [[bin]]
 name = "c2rust-clean"
